@@ -391,11 +391,22 @@ function authMiddleware(req: AuthenticatedRequest, res: Response, next: NextFunc
 }
 
 // --- Health Check ---
-app.get("/api/health", (req, res) => {
+// Probes the database LIVE instead of trusting the startup flag. On serverless
+// cold starts (and slow local pools) the startup flag can still be false long
+// after the DB is actually queryable — and queries themselves have a 10s cap,
+// so this probe fails fast if the DB is genuinely down.
+app.get("/api/health", async (req: Request, res: Response) => {
+  let liveDb = false;
+  try {
+    await queryAll("SELECT 1 AS ok");
+    liveDb = true;
+  } catch (err: any) {
+    console.warn("Health probe failed:", err?.message || err);
+  }
   res.json({
     status: "ok",
     time: new Date().toISOString(),
-    dbReady,
+    dbReady: liveDb || dbReady,
     dbMode: process.env.DATABASE_URL ? "postgres" : "sqlite",
     hasDatabaseUrl: Boolean(process.env.DATABASE_URL),
   });
