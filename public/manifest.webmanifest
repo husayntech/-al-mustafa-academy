@@ -1,0 +1,40 @@
+{
+  "name": "Al Mustafa Academy",
+  "short_name": "Al Mustafa",
+  "description": "Al Mustafa Academy — Bridging Tradition & Excellence. A world-class Islamic school nurturing souls and educating minds.",
+  "id": "/",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "any",
+  "background_color": "#012d1d",
+  "theme_color": "#012d1d",
+  "lang": "en",
+  "categories": ["education", "school"],
+  "icons": [
+    {
+      "src": "/app-icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    },
+    {
+      "src": "/uploads/logo_1785834148413.jpeg",
+      "sizes": "192x192",
+      "type": "image/jpeg",
+      "purpose": "any"
+    },
+    {
+      "src": "/uploads/logo_1785834148413.jpeg",
+      "sizes": "512x512",
+      "type": "image/jpeg",
+      "purpose": "any"
+    },
+    {
+      "src": "/app-icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "maskable"
+    }
+  ]
+}
