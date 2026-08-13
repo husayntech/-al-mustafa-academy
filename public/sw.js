@@ -4,9 +4,9 @@
  *  - API + content requests: network-first with a short offline cache fallback
  *  - Navigations: network-first, falling back to cached shell for offline use
  */
-// Bumped to v2 so already-installed apps refresh their shell, icon and content
-// after the PWA update (the logo PNG icons replaced the placeholder SVG).
-const CACHE = "almustafa-v2";
+// v3: tight square-crop icons of the real logo crest (no green bars, no maskable
+// over-cropping). Bump ensures installed apps fetch the new icons on next load.
+const CACHE = "almustafa-v3";
 const SHELL_URLS = ["/", "/index.html", "/manifest.webmanifest", "/app-icon-192.png", "/app-icon-512.png"];
 
 self.addEventListener("install", (event) => {
