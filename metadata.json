@@ -1,0 +1,6 @@
+{
+  "name": "Al Mustafa Academy",
+  "description": "Al Mustafa Academy - Bridging Tradition & Excellence through secular academic rigor and spiritual growth.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
