@@ -606,10 +606,14 @@ export function useSiteContent(): Record<string, string> {
       if (e.key === 'content-saved') load();
     };
     window.addEventListener('storage', handleStorage);
+    // Auto-refresh every 45s so an OPEN app (phone/PC) picks up edits made from
+    // anywhere else — the site content always comes fresh from the server.
+    const poll = setInterval(load, 45_000);
     return () => {
       active = false;
       window.removeEventListener("content-saved", load);
       window.removeEventListener('storage', handleStorage);
+      clearInterval(poll);
     };
   }, []);
 
