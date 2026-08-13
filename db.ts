@@ -288,8 +288,25 @@ async function ensurePostgresSchema() {
 
 async function seedPostgresIfEmpty() {
   if (!sql) return;
-  const rows = await sql.unsafe(`SELECT COUNT(*)::int as cnt FROM public.classes`);
-  if (rows[0].cnt > 0) return;
+  // Use the guarded query helper: on a wedged/slow connection it THROWS after
+  // the 10s cap instead of hanging — and a failed count must NEVER trigger a
+  // seed (a stale socket answering the first query with an empty result is how
+  // duplicate classes got written to a live production database before).
+  let cnt: number | null = null;
+  try {
+    const rows = await queryAll(`SELECT COUNT(*)::int as cnt FROM public.classes`);
+    cnt = rows[0]?.cnt ?? null;
+  } catch (err: any) {
+    console.warn("⚠️  Class count check failed — skipping seed to avoid duplicates:", err?.message || err);
+    return;
+  }
+  // Only seed when we are CERTAIN the table is empty. Any uncertainty (null /
+  // unexpected value) skips seeding — the safest failure mode is "do nothing".
+  if (cnt !== 0) {
+    if (cnt !== null && cnt > 0) console.log("✅ Classes already exist — skipping seed");
+    else console.warn("⚠️  Class count returned an unexpected value (" + String(cnt) + ") — skipping seed");
+    return;
+  }
   console.log("🌱 Seeding default data (PostgreSQL)...");
 
   // Helper: one round-trip per table instead of one per row — the Supabase
