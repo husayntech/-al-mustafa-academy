@@ -167,7 +167,7 @@ export default function AdmissionsTab() {
           <div className="mt-8">
             <button
               onClick={handleApplyScroll}
-              className="bg-secondary-container hover:bg-secondary hover:text-white text-on-secondary-container px-8 py-4 rounded-lg font-semibold text-sm cursor-pointer shadow-lg hover:scale-105 transition-all inline-flex items-center gap-2"
+              className="bg-secondary hover:bg-secondary-hover text-white px-8 py-4 rounded-lg font-semibold text-sm cursor-pointer shadow-lg shadow-black/25 hover:scale-105 transition-all inline-flex items-center gap-2"
             >
               <EditableText contentKey="admissions_apply_button_text" value={siteContent.admissions_apply_button_text || ""} fallback="Apply / Send Inquiry" label="Apply Button Text" plain>
                 <span>{siteContent.admissions_apply_button_text || "Apply / Send Inquiry"}</span>
