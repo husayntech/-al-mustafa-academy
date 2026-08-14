@@ -375,7 +375,8 @@ export default function SpacingGuide() {
 
   const loadSavedCustomStyles = async (): Promise<string | undefined> => {
     try {
-      const res = await fetch("/api/content");
+      // cache: "no-store" — always read the freshest saved styles, never the HTTP cache
+      const res = await fetch("/api/content", { cache: "no-store" });
       const data = await res.json();
       return data?.content?.custom_styles;
     } catch { return undefined; }

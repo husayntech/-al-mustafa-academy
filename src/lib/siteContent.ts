@@ -1,7 +1,54 @@
 import { useEffect, useState } from "react";
 import { cleanHtmlMarkup } from "./cleanHtml.js";
+import { applyCustomStyles } from "./customStyles.js";
 
 export { cleanHtmlMarkup };
+
+/**
+ * Local snapshot of the last-known site content. The blocking bootstrap in
+ * index.html applies its theme + custom styles BEFORE the first paint, and
+ * useSiteContent hydrates its initial state from it — so repeat visits render
+ * the real UI immediately with zero flash of the hardcoded fallbacks.
+ */
+const SNAPSHOT_KEY = "ama_site_snapshot_v1";
+
+export interface SiteSnapshot {
+  content: Record<string, string>;
+  ts: number;
+}
+
+export function readSiteSnapshot(): SiteSnapshot | null {
+  try {
+    const raw = localStorage.getItem(SNAPSHOT_KEY);
+    if (!raw) return null;
+    const snap = JSON.parse(raw) as SiteSnapshot;
+    return snap && snap.content ? snap : null;
+  } catch {
+    return null;
+  }
+}
+
+export function writeSiteSnapshot(content: Record<string, string>) {
+  try {
+    localStorage.setItem(
+      SNAPSHOT_KEY,
+      JSON.stringify({ content, ts: Date.now() } satisfies SiteSnapshot)
+    );
+  } catch {
+    /* storage full / private mode — non-fatal */
+  }
+}
+
+/**
+ * Release the first-paint gate armed by the index.html bootstrap (first visit
+ * only). Called as soon as real content + styles are in place, and on fetch
+ * failure so the site is never stuck hidden.
+ */
+export function revealApp() {
+  const root = document.documentElement;
+  root.removeAttribute("data-ama-boot");
+  root.setAttribute("data-ama-ready", "1");
+}
 
 export type ContentFieldType = "text" | "textarea" | "color" | "image" | "html" | "spacing";
 
@@ -581,38 +628,60 @@ export function normalizeImageUrl(url: string | undefined | null): string {
 /**
  * Fetch public site content once and keep it in sync.
  * Also refreshes when the admin saves content ("content-saved" event).
+ *
+ * Initial state is hydrated synchronously from the local snapshot (if any), so
+ * the very first React render already shows the real site content — the
+ * hardcoded fallbacks are never painted on repeat visits. Theme, typography and
+ * Style-Editor custom styles are applied the instant fresh content arrives
+ * (no delayed pop-in), and the snapshot is rewritten so every future visit is
+ * equally instant.
  */
 export function useSiteContent(): Record<string, string> {
-  const [content, setContent] = useState<Record<string, string>>({});
+  const [content, setContent] = useState<Record<string, string>>(
+    () => readSiteSnapshot()?.content ?? {}
+  );
 
   useEffect(() => {
     let active = true;
+    const applyAll = (c: Record<string, string>) => {
+      applyThemeColors(c);
+      applyTypography(c);
+      // Apply Style-Editor rules as soon as the DOM exists for them — the
+      // bootstrap already injected them as CSS pre-paint; this re-applies the
+      // exact same values so saved edits survive any remount.
+      applyCustomStyles(c.custom_styles);
+      setContent(c);
+      writeSiteSnapshot(c);
+      revealApp();
+    };
     const load = () => {
-      fetch("/api/content")
-        .then((res) => res.json())
+      // cache: "no-store" — never let the browser HTTP cache serve stale content
+      fetch("/api/content", { cache: "no-store" })
+        .then((res) => (res.ok ? res.json() : Promise.reject(new Error("bad status"))))
         .then((data) => {
           if (!active) return;
-          const c = data.content || {};
-          setContent(c);
-          applyThemeColors(c);
-          applyTypography(c);
+          applyAll(data.content || {});
         })
-        .catch(() => {});
+        .catch(() => {
+          // Offline / API down: never leave the page hidden or blank — the
+          // snapshot (or defaults) already painted, so just lift the gate.
+          if (active) revealApp();
+        });
     };
     load();
     window.addEventListener("content-saved", load);
     // Also listen for storage events (cross-tab sync)
     const handleStorage = (e: StorageEvent) => {
-      if (e.key === 'content-saved') load();
+      if (e.key === "content-saved") load();
     };
-    window.addEventListener('storage', handleStorage);
+    window.addEventListener("storage", handleStorage);
     // Auto-refresh every 45s so an OPEN app (phone/PC) picks up edits made from
     // anywhere else — the site content always comes fresh from the server.
     const poll = setInterval(load, 45_000);
     return () => {
       active = false;
       window.removeEventListener("content-saved", load);
-      window.removeEventListener('storage', handleStorage);
+      window.removeEventListener("storage", handleStorage);
       clearInterval(poll);
     };
   }, []);

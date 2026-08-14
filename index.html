@@ -13,6 +13,87 @@
     <title>Al Mustafa Academy | Bridging Tradition & Excellence</title>
     <link rel="icon" type="image/png" href="/app-icon-192.png" />
     <link rel="apple-touch-icon" href="/app-icon-192.png" />
+
+    <!--
+      Blocking pre-paint bootstrap — eliminates the Flash of Unstyled/Default Content.
+      This runs synchronously BEFORE the app bundle, so the very first frame already
+      carries the last-known site content theme, typography, and Style-Editor custom
+      styles (read from a local snapshot). On a brand-new visit (no snapshot) the app
+      is held behind a tiny fade gate until real content loads (max 1.5s fallback).
+    -->
+    <script>
+      (function () {
+        var KEY = "ama_site_snapshot_v1";
+        var VARS = {
+          color_primary: "--color-primary",
+          color_primary_hover: "--color-primary-hover",
+          color_secondary: "--color-secondary",
+          color_secondary_hover: "--color-secondary-hover",
+          color_secondary_fixed: "--color-secondary-fixed",
+          color_secondary_container: "--color-secondary-container",
+          font_heading: "--font-serif",
+          font_body: "--font-sans",
+          heading_size_h1: "--heading-size-h1",
+          heading_size_h2: "--heading-size-h2",
+          heading_size_h3: "--heading-size-h3",
+          body_text_size: "--body-text-size",
+          line_height_body: "--line-height-body",
+          letter_spacing_headings: "--letter-spacing-headings",
+        };
+        try {
+          var raw = localStorage.getItem(KEY);
+          if (raw) {
+            var snap = JSON.parse(raw);
+            var content = snap && snap.content ? snap.content : null;
+            if (content) {
+              var cssText = "";
+              for (var k in VARS) {
+                var v = (content[k] || "").trim();
+                if (!v) continue;
+                if (k.indexOf("color_") === 0 && !/^#[0-9a-fA-F]{6}$/.test(v)) continue;
+                cssText += VARS[k] + ":" + v + ";";
+              }
+              if (cssText) document.documentElement.style.cssText += cssText;
+
+              // Convert saved Style-Editor rules into real CSS so margins, padding,
+              // colors, fonts, etc. are applied from the very first frame.
+              var cs = content.custom_styles;
+              if (cs) {
+                try {
+                  var map = JSON.parse(cs);
+                  var css = "";
+                  for (var sel in map) {
+                    var props = map[sel];
+                    if (!props || typeof props !== "object") continue;
+                    var decl = "";
+                    for (var prop in props) {
+                      var val = String(props[prop]).trim();
+                      if (!val) continue;
+                      decl += prop.replace(/[A-Z]/g, function (m) { return "-" + m.toLowerCase(); }) + ":" + val + ";";
+                    }
+                    if (decl) css += sel + "{" + decl + "}";
+                  }
+                  if (css) {
+                    var el = document.createElement("style");
+                    el.id = "ama-boot-styles";
+                    el.textContent = css;
+                    document.head.appendChild(el);
+                  }
+                } catch (e) {}
+              }
+              document.documentElement.setAttribute("data-ama-ready", "1");
+              return; // snapshot present → render immediately, zero flash
+            }
+          }
+        } catch (e) {}
+        // First visit (or cleared storage): gate first paint until the real
+        // content + styles arrive (or 1.5s fallback so the page never stays blank).
+        document.documentElement.setAttribute("data-ama-boot", "1");
+        setTimeout(function () {
+          document.documentElement.setAttribute("data-ama-ready", "1");
+        }, 1500);
+      })();
+    </script>
   </head>
   <body>
     <div id="root"></div>

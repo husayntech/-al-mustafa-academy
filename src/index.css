@@ -1,6 +1,28 @@
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Playfair+Display:ital,wght@0,400..900;1,400..900&display=swap');
 @import "tailwindcss";
 
+/* ---- First-paint gate (anti-FOUC) ----
+ * Set by the blocking bootstrap in index.html. On a brand-new visit the app is
+ * hidden for the brief moment it takes for real content + saved styles to load,
+ * then fades in — so default/fallback content is never visible even for a frame.
+ * When a local snapshot exists the gate is never armed, so there is zero delay. */
+html[data-ama-boot="1"] #root {
+  visibility: hidden;
+}
+html[data-ama-boot="1"][data-ama-ready="1"] #root {
+  visibility: visible;
+  animation: ama-fade-in 0.25s ease-out;
+}
+@keyframes ama-fade-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+@media (prefers-reduced-motion: reduce) {
+  html[data-ama-boot="1"][data-ama-ready="1"] #root {
+    animation: none;
+  }
+}
+
 @theme {
   --font-serif: "Playfair Display", Georgia, serif;
   --font-sans: "Inter", system-ui, sans-serif;

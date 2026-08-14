@@ -1650,6 +1650,9 @@ app.put("/api/admin/content", authMiddleware, adminMiddleware, async (req: Authe
 // Public content route (no auth)
 app.get("/api/content", async (req: Request, res: Response) => {
   try {
+    // Never cache content — every load must reflect the current admin edits so
+    // localhost and Vercel (and any installed app) always show the same fresh UI.
+    res.setHeader("Cache-Control", "no-store");
     const content = await queryAll("SELECT content_key, content_value FROM site_content ORDER BY id");
     const contentMap: Record<string, string> = {};
     for (const c of content) {
@@ -1749,10 +1752,29 @@ async function setupServer() {
     app.use(vite.middlewares);
   } else {
     const distPath = path.join(process.cwd(), "dist");
-    app.use(express.static(distPath));
+    app.use(
+      express.static(distPath, {
+        maxAge: 0,
+        immutable: false,
+        // express.static serves the directory index (/) before our catch-all,
+        // so force no-store on the HTML shell here as well — the browser must
+        // always fetch the newest build (hashed assets stay cacheable).
+        setHeaders: (res, filePath) => {
+          if (filePath.endsWith("index.html")) {
+            res.setHeader("Cache-Control", "no-store");
+            res.setHeader("Pragma", "no-cache");
+          }
+        },
+      })
+    );
     app.get("*", (req, res) => {
       const indexHtml = path.join(distPath, "index.html");
       if (fs.existsSync(indexHtml)) {
+        // Never cache the HTML shell — the browser must always fetch the newest
+        // build (hashed JS/CSS URLs change per deploy, so assets are safe to
+        // cache but index.html itself must never go stale).
+        res.setHeader("Cache-Control", "no-store");
+        res.setHeader("Pragma", "no-cache");
         res.sendFile(indexHtml);
       } else {
         // No frontend build present (e.g. bare serverless function) — never crash

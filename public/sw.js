@@ -4,17 +4,27 @@
  *  - API + content requests: network-first with a short offline cache fallback
  *  - Navigations: network-first, falling back to cached shell for offline use
  */
-// v3: tight square-crop icons of the real logo crest (no green bars, no maskable
-// over-cropping). Bump ensures installed apps fetch the new icons on next load.
-const CACHE = "almustafa-v3";
+// v4: network requests run with cache:"no-store" so the browser HTTP cache can
+// never hand back a stale index.html or stale content — every navigation and
+// API call hits the server fresh (the SW cache is only an offline fallback).
+const CACHE = "almustafa-v4";
 const SHELL_URLS = ["/", "/index.html", "/manifest.webmanifest", "/app-icon-192.png", "/app-icon-512.png"];
 
 self.addEventListener("install", (event) => {
   event.waitUntil(
-    caches
-      .open(CACHE)
-      .then((cache) => cache.addAll(SHELL_URLS))
-      .catch(() => {})
+    (async () => {
+      const cache = await caches.open(CACHE);
+      // Fetch the shell with cache:"no-store" so a stale HTTP-cached index.html
+      // can never be baked into the offline shell at install time.
+      await Promise.all(
+        SHELL_URLS.map(async (url) => {
+          try {
+            const res = await fetch(url, { cache: "no-store" });
+            if (res.ok) await cache.put(url, res);
+          } catch {}
+        })
+      );
+    })()
   );
   self.skipWaiting();
 });
@@ -35,10 +45,11 @@ self.addEventListener("fetch", (event) => {
   const url = new URL(request.url);
   if (request.method !== "GET") return;
 
-  // Never cache auth/admin/upload mutation endpoints
+  // Never cache auth/admin/upload mutation endpoints; always hit the network
+  // with no-store so content reflects the latest admin edits.
   if (url.pathname.startsWith("/api/")) {
     event.respondWith(
-      fetch(request).catch(() =>
+      fetch(request, { cache: "no-store" }).catch(() =>
         caches.match(request).then((r) => r || new Response("offline", { status: 503 }))
       )
     );
@@ -60,10 +71,10 @@ self.addEventListener("fetch", (event) => {
     return;
   }
 
-  // Navigations & page requests — network-first with offline shell fallback
+  // Navigations & page requests — network-first (no HTTP cache) with offline shell fallback
   if (request.mode === "navigate") {
     event.respondWith(
-      fetch(request)
+      fetch(request, { cache: "no-store" })
         .then((res) => {
           const copy = res.clone();
           caches.open(CACHE).then((cache) => cache.put(request, copy)).catch(() => {});

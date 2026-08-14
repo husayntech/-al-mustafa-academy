@@ -302,7 +302,8 @@ export function renderResultSheetTemplate(template: string, data: Record<string,
 /** Fetches the current result-sheet config (public read endpoint), merged with defaults. */
 export async function fetchResultSheetConfig(): Promise<Record<string, string>> {
   try {
-    const res = await fetch("/api/result-sheet-config");
+    // cache: "no-store" — the admin can edit this config live; never serve stale
+    const res = await fetch("/api/result-sheet-config", { cache: "no-store" });
     if (!res.ok) return { ...RESULT_SHEET_DEFAULTS };
     const data = await res.json();
     return { ...RESULT_SHEET_DEFAULTS, ...(data.config || {}) };
