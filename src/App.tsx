@@ -1,5 +1,5 @@
 import { lazy, Suspense, useEffect, useState } from "react";
-import { motion, AnimatePresence, useScroll, useSpring } from "motion/react";
+import { motion, AnimatePresence } from "motion/react";
 import { ArrowUp, GraduationCap } from "lucide-react";
 import { ScreenId, User, Student, Class, Subject, Result } from "./types";
 import { useSiteContent } from "./lib/siteContent";
@@ -66,10 +66,6 @@ export default function App() {
     }, 60);
     return () => clearTimeout(t);
   }, [siteContent, currentScreen, contentVersion]);
-
-  // Reading-progress bar — fills the top of the page as the user scrolls through the landing page
-  const { scrollYProgress } = useScroll();
-  const progressScaleX = useSpring(scrollYProgress, { stiffness: 120, damping: 30, restDelta: 0.001 });
 
   // Floating scroll-to-top button — appears once the user scrolls down the landing page
   const [showScrollTop, setShowScrollTop] = useState(false);
@@ -423,13 +419,6 @@ export default function App() {
 
   return (
     <div className="min-h-screen bg-background text-on-surface font-sans flex flex-col antialiased">
-      {/* Reading Progress Bar — fixed above the header, fills as you scroll */}
-      <motion.div
-        style={{ scaleX: progressScaleX }}
-        className="fixed top-0 left-0 right-0 h-1 origin-left bg-secondary z-[45] pointer-events-none"
-        aria-hidden="true"
-      />
-
       {/* Dynamic Navigation Header */}
       <Header
         currentScreen={currentScreen}
