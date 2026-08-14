@@ -84,13 +84,13 @@ export default function GallerySection() {
                   contentKey={item.imgKey}
                   label={`Gallery: Image ${i + 1}`}
                   src={item.img}
-                  alt={item.cap || `Al Mustafa Academy — photo ${i + 1}`}
+                  alt={item.cap || `Al Mustafa Academy campus life — photo ${i + 1}`}
                   className="relative h-full w-full"
                 >
                   {item.img ? (
                     <img
                       src={item.img}
-                      alt={item.cap || `Al Mustafa Academy — photo ${i + 1}`}
+                      alt={item.cap || `Al Mustafa Academy campus life — photo ${i + 1}`}
                       className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
                       loading="lazy"
                       decoding="async"

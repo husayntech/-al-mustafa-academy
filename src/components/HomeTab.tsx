@@ -208,7 +208,7 @@ export default function HomeTab({ onScreenChange }: HomeTabProps) {
             animate={{ scale: 1, opacity: 1 }}
             transition={{ delay: 0.65 }}
             onClick={() => onScreenChange("admissions")}
-            className="bg-secondary-container hover:bg-secondary hover:text-white text-on-secondary-container px-8 py-4 rounded-full font-semibold text-sm cursor-pointer shadow-lg hover:shadow-xl transition-all hover:scale-105 active:scale-95"
+            className="bg-secondary hover:bg-secondary-hover text-white px-8 py-4 rounded-full font-semibold text-sm cursor-pointer shadow-lg shadow-black/25 hover:shadow-xl transition-all hover:scale-105 active:scale-95"
           >
             <EditableText contentKey="cta_button_text" value={siteContent.cta_button_text || ""} fallback="Join Our Community" label="CTA Button Text" plain>
               <span>{ctaText}</span>

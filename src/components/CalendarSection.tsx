@@ -119,10 +119,10 @@ export default function CalendarSection() {
                 <button
                   key={t.labelKey}
                   onClick={() => setActiveTerm(i)}
-                  className={`px-3 py-1.5 rounded-full text-[10px] font-bold uppercase tracking-wider transition-all cursor-pointer ${
+                  className={`px-3.5 py-2 rounded-full text-[10px] font-bold uppercase tracking-wider transition-all cursor-pointer ${
                     i === activeTerm
-                      ? "bg-secondary-fixed text-primary shadow"
-                      : "bg-white/10 text-white/80 hover:bg-white/20"
+                      ? "bg-secondary text-primary shadow-md shadow-secondary/40 ring-2 ring-white/25 scale-[1.03]"
+                      : "bg-white/10 text-white/80 hover:bg-white/25"
                   }`}
                   aria-pressed={i === activeTerm}
                 >
