@@ -688,27 +688,22 @@ export const CONTENT_DEFAULTS: Record<string, string> = {
   calendar_padding_top: "96",
   calendar_padding_bottom: "96",
 
-  // ---- FAQs ----
+  // ---- FAQs (intentionally empty — real questions are added via the admin
+  //      Content tab as families ask them, nothing hardcoded) ----
   faq_heading: "Frequently Asked Questions",
   faq_subtitle: "Answers to the questions families ask us most.",
-  faq_q1: "What is the balance between Western and Islamic studies?",
-  faq_a1:
-    "Al Mustafa Academy delivers a dual curriculum: a rigorous Western academic programme (English, Mathematics, Sciences, and more) alongside comprehensive Islamic studies — Qur’an memorisation (Hifdh), Tajwīd, Arabic, Fiqh, and Islamic etiquette (Akhlaaq). Students graduate strong in both worlds.",
-  faq_q2: "Do you provide transportation for students?",
-  faq_a2:
-    "Yes — we operate school transportation on select routes within Ilorin. Please contact our admissions office or reach us on WhatsApp for the current routes and pick-up schedule.",
-  faq_q3: "Is there a feeding or meal programme?",
-  faq_a3:
-    "We run a supervised feeding programme that provides nutritious meals during the school day. Details, including menus and fees, are shared with parents each term.",
-  faq_q4: "How can I pay application and school fees?",
-  faq_a4:
-    "Simply transfer the exact amount to the account shown in our Fees section (Palmpay — 8037525855, Ibrahim Olamilekan Mustapha), then tap the confirm button to notify us on WhatsApp with your transfer receipt.",
-  faq_q5: "How do I check my child’s results?",
-  faq_a5:
-    "Parents and students can check termly results through the Student Portal — log in with the student’s surname and password (issued by the school). Report cards are also available as PDF.",
-  faq_q6: "When does the academic year begin?",
-  faq_a6:
-    "Our academic calendar runs by Islamic (Hijri) and civil dates each session — see the Academic Calendar section for term dates, examinations, and important events such as the Qur’an competition.",
+  faq_q1: "",
+  faq_a1: "",
+  faq_q2: "",
+  faq_a2: "",
+  faq_q3: "",
+  faq_a3: "",
+  faq_q4: "",
+  faq_a4: "",
+  faq_q5: "",
+  faq_a5: "",
+  faq_q6: "",
+  faq_a6: "",
   faq_heading_gap: "40",
   faq_padding_top: "96",
   faq_padding_bottom: "96",

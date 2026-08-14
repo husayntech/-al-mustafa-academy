@@ -26,6 +26,10 @@ export default function FAQSection() {
     a: siteContent[`faq_a${i + 1}`] || "",
   })).filter((it) => it.q);
 
+  // No questions added yet — hide the section entirely until the admin adds
+  // real questions in the Content tab.
+  if (items.length === 0) return null;
+
   return (
     <motion.section
       id="faq-section"
