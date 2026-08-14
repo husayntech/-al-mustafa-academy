@@ -183,15 +183,22 @@ export default function HomeTab({ onScreenChange }: HomeTabProps) {
             initial={{ scale: 0.9, opacity: 0 }}
             animate={{ scale: 1, opacity: 1 }}
             transition={{ delay: 0.65 }}
-            onClick={() => {
-              const el = document.getElementById("admissions-section");
-              if (el) el.scrollIntoView({ behavior: "smooth", block: "start" });
-              else onScreenChange("admissions");
-            }}
+            onClick={() => onScreenChange("admissions")}
             className="bg-secondary-container hover:bg-secondary hover:text-white text-on-secondary-container px-8 py-4 rounded-full font-semibold text-sm cursor-pointer shadow-lg hover:shadow-xl transition-all hover:scale-105 active:scale-95"
           >
             <EditableText contentKey="cta_button_text" value={siteContent.cta_button_text || ""} fallback="Join Our Community" label="CTA Button Text" plain>
               <span>{ctaText}</span>
+            </EditableText>
+          </motion.button>
+          <motion.button
+            initial={{ scale: 0.9, opacity: 0 }}
+            animate={{ scale: 1, opacity: 1 }}
+            transition={{ delay: 0.8 }}
+            onClick={() => onScreenChange("welcome")}
+            className="mt-4 inline-flex items-center gap-2 text-white/85 hover:text-white text-xs font-semibold uppercase tracking-wider underline decoration-secondary/70 underline-offset-4 hover:decoration-secondary transition-all cursor-pointer"
+          >
+            <EditableText contentKey="welcome_cta_label" value={siteContent.welcome_cta_label || ""} fallback="Read the Director's Welcome Message" label="Welcome CTA Label" plain>
+              <span>{siteContent.welcome_cta_label || "Read the Director's Welcome Message"}</span>
             </EditableText>
           </motion.button>
         </div>

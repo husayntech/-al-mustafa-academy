@@ -117,30 +117,43 @@ export default function App() {
     academicYear: string;
   } | null>(null);
 
-  // On the landing page, all content sections (Home, Welcome, Admissions,
-  // Calendar, Madrasah, FAQs, Gallery) are rendered together in one long page.
-  // Nav links scroll to the matching section instead of switching screens.
-  // Portal screens still use currentScreen as before.
-  const SECTION_IDS: Record<string, string> = {
-    home: "home-section",
-    admissions: "admissions-section",
-    curriculum: "madrasah-section",
-    calendar: "calendar-section",
-    faq: "faq-section",
-    gallery: "gallery-section",
-  };
+  // Every public content section is its own page — nav links switch screens.
   const handleScreenChange = (screenId: ScreenId) => {
-    if (screenId in SECTION_IDS) {
-      setCurrentScreen("home");
-      const el = document.getElementById(SECTION_IDS[screenId]);
-      if (el) {
-        el.scrollIntoView({ behavior: "smooth", block: "start" });
-      } else {
-        window.scrollTo({ top: 0, behavior: "smooth" });
-      }
+    setCurrentScreen(screenId);
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  };
+
+  // Sticky "Apply" button: opens the Admissions page, landing on the inquiry form.
+  const goToApply = () => {
+    const scrollToForm = () => {
+      const el = document.getElementById("apply-form-section");
+      if (el) el.scrollIntoView({ behavior: "smooth", block: "start" });
+    };
+    if (currentScreen === "admissions") {
+      scrollToForm();
     } else {
-      setCurrentScreen(screenId);
-      window.scrollTo({ top: 0, behavior: "smooth" });
+      setCurrentScreen("admissions");
+      window.scrollTo({ top: 0 });
+      setTimeout(scrollToForm, 350); // wait for the page to mount
+    }
+  };
+
+  const renderPublicScreen = () => {
+    switch (currentScreen) {
+      case "welcome":
+        return <WelcomeSection />;
+      case "admissions":
+        return <AdmissionsTab />;
+      case "calendar":
+        return <CalendarSection />;
+      case "curriculum":
+        return <MadrasahActivitiesTab />;
+      case "faq":
+        return <FAQSection />;
+      case "gallery":
+        return <GallerySection />;
+      default:
+        return <HomeTab onScreenChange={handleScreenChange} />;
     }
   };
 
@@ -399,15 +412,20 @@ export default function App() {
         onAdminPortal={handleOpenAdminLogin}
       />
 
-      {/* Main Interactive Screen Content — all public sections on one page */}
+      {/* Main Screen Content — one page per public section */}
       <main className="flex-1 pt-16 flex flex-col">
-        <HomeTab onScreenChange={handleScreenChange} />
-        <WelcomeSection />
-        <AdmissionsTab />
-        <CalendarSection />
-        <MadrasahActivitiesTab />
-        <FAQSection />
-        <GallerySection />
+        <AnimatePresence mode="wait" initial={false}>
+          <motion.div
+            key={currentScreen}
+            initial={{ opacity: 0, y: 12 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -8 }}
+            transition={{ duration: 0.25 }}
+            className="flex-1 flex flex-col"
+          >
+            {renderPublicScreen()}
+          </motion.div>
+        </AnimatePresence>
       </main>
 
       {/* Universal Footer */}
@@ -439,11 +457,7 @@ export default function App() {
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: 16, scale: 0.9 }}
             transition={{ duration: 0.2 }}
-            onClick={() => {
-              const el = document.getElementById("apply-form-section");
-              if (el) el.scrollIntoView({ behavior: "smooth", block: "start" });
-              else window.scrollTo({ top: 0, behavior: "smooth" });
-            }}
+            onClick={goToApply}
             className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 flex items-center gap-2 bg-secondary hover:bg-secondary-hover text-white px-7 py-3.5 rounded-full font-bold text-sm uppercase tracking-wider shadow-xl shadow-black/25 hover:scale-105 active:scale-95 transition-all cursor-pointer"
           >
             <GraduationCap className="w-4 h-4" />

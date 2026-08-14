@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { motion, AnimatePresence } from "motion/react";
 import { Menu, Home, GraduationCap, BookOpen, CalendarDays, HelpCircle, Images, ChevronDown, Lock, UserRound, ShieldCheck } from "lucide-react";
 import { ScreenId } from "../types";
@@ -23,36 +23,16 @@ export default function Header({
 }: HeaderProps) {
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [portalsOpen, setPortalsOpen] = useState(false);
-  const [activeSection, setActiveSection] = useState<string>("home-section");
   const siteContent = useSiteContent();
   const logoUrl = normalizeImageUrl(siteContent.logo_url || "/uploads/logo_1785834148413.jpeg");
 
-  // Scroll-spy: on the single-page landing layout, highlight the nav link of
-  // whichever content section is currently in view.
-  useEffect(() => {
-    const ids = ["home-section", "welcome-section", "admissions-section", "calendar-section", "madrasah-section", "faq-section", "gallery-section"];
-    const observer = new IntersectionObserver(
-      (entries) => {
-        for (const entry of entries) {
-          if (entry.isIntersecting) setActiveSection(entry.target.id);
-        }
-      },
-      { rootMargin: "-40% 0px -55% 0px", threshold: 0 }
-    );
-    ids.forEach((id) => {
-      const el = document.getElementById(id);
-      if (el) observer.observe(el);
-    });
-    return () => observer.disconnect();
-  }, []);
-
-  const navLinks: { id: ScreenId; label: string; labelKey: string; icon: any; scrollToId: string }[] = [
-    { id: "home", label: siteContent.nav_home_label || "Home", labelKey: "nav_home_label", icon: Home, scrollToId: "home-section" },
-    { id: "admissions", label: siteContent.nav_admissions_label || "Admissions", labelKey: "nav_admissions_label", icon: GraduationCap, scrollToId: "admissions-section" },
-    { id: "calendar", label: siteContent.nav_calendar_label || "Academic Calendar", labelKey: "nav_calendar_label", icon: CalendarDays, scrollToId: "calendar-section" },
-    { id: "curriculum", label: siteContent.nav_curriculum_label || "Madrasah Activities", labelKey: "nav_curriculum_label", icon: BookOpen, scrollToId: "madrasah-section" },
-    { id: "faq", label: siteContent.nav_faq_label || "FAQs", labelKey: "nav_faq_label", icon: HelpCircle, scrollToId: "faq-section" },
-    { id: "gallery", label: siteContent.nav_gallery_label || "Gallery", labelKey: "nav_gallery_label", icon: Images, scrollToId: "gallery-section" },
+  const navLinks: { id: ScreenId; label: string; labelKey: string; icon: any }[] = [
+    { id: "home", label: siteContent.nav_home_label || "Home", labelKey: "nav_home_label", icon: Home },
+    { id: "admissions", label: siteContent.nav_admissions_label || "Admissions", labelKey: "nav_admissions_label", icon: GraduationCap },
+    { id: "calendar", label: siteContent.nav_calendar_label || "Academic Calendar", labelKey: "nav_calendar_label", icon: CalendarDays },
+    { id: "curriculum", label: siteContent.nav_curriculum_label || "Madrasah Activities", labelKey: "nav_curriculum_label", icon: BookOpen },
+    { id: "faq", label: siteContent.nav_faq_label || "FAQs", labelKey: "nav_faq_label", icon: HelpCircle },
+    { id: "gallery", label: siteContent.nav_gallery_label || "Gallery", labelKey: "nav_gallery_label", icon: Images },
   ];
 
   const portalLinks: { label: string; icon: any; onClick?: () => void }[] = [
@@ -62,11 +42,9 @@ export default function Header({
   ];
 
   const handleLinkClick = (id: ScreenId) => {
-    const link = navLinks.find((l) => l.id === id);
     setDrawerOpen(false);
     setPortalsOpen(false);
     onScreenChange(id);
-    if (link) setActiveSection(link.scrollToId);
   };
 
   const handlePortalClick = (fn?: () => void) => {
@@ -120,7 +98,7 @@ export default function Header({
           {/* Desktop Navigation */}
           <nav className="hidden lg:flex items-center gap-6 xl:gap-8 h-full">
             {navLinks.map((link) => {
-              const isActive = activeSection === link.scrollToId;
+              const isActive = currentScreen === link.id;
               return (
                 <button
                   key={link.id}
@@ -266,7 +244,7 @@ export default function Header({
 
               <nav className="flex flex-col gap-1 px-2">
                 {navLinks.map((link) => {
-                  const isActive = activeSection === link.scrollToId;
+                  const isActive = currentScreen === link.id;
                   const IconComponent = link.icon;
                   return (
                     <button
