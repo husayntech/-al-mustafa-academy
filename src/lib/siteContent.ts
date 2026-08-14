@@ -533,7 +533,7 @@ export const CONTENT_DEFAULTS: Record<string, string> = {
   admissions_form_email_placeholder: "example@email.com",
   admissions_form_grade_label: "Grade of Interest",
   admissions_form_grade_options: "Primary (Grades 1-5)\nMiddle School (Grades 6-8)\nHigh School (Grades 9-12)",
-  admissions_whatsapp_number: "2348037525585",
+  admissions_whatsapp_number: "2348037525855",
   admissions_form_message_label: "Message",
   admissions_form_message_placeholder: "How can we help you?",
   admissions_form_submit_text: "Send Inquiry",

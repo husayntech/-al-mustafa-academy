@@ -45,7 +45,7 @@ export default function AdmissionsTab() {
 
   // Payment confirmation: opens WhatsApp pre-filled with the fee + account details
   const handlePaymentConfirm = () => {
-    const whatsappNumber = normalizeWhatsAppNumber(siteContent.admissions_whatsapp_number || "2348037525585");
+    const whatsappNumber = normalizeWhatsAppNumber(siteContent.admissions_whatsapp_number || "2348037525855");
     const bankName = siteContent.payment_bank_name || "Palmpay";
     const accountNumber = siteContent.payment_account_number || "8037525855";
     const accountName = siteContent.payment_account_name || "Ibrahim Olamilekan Mustapha";
@@ -62,7 +62,7 @@ export default function AdmissionsTab() {
     setIsSubmitting(true);
 
     // Build WhatsApp message
-    const whatsappNumber = normalizeWhatsAppNumber(siteContent.admissions_whatsapp_number || "2348037525585");
+    const whatsappNumber = normalizeWhatsAppNumber(siteContent.admissions_whatsapp_number || "2348037525855");
     const whatsappMessage = encodeURIComponent(
       `Assalamu Alaikum,\n\nI am writing to inquire about admission to Al Mustafa Academy.\n\n*Full Name:* ${formData.fullName}\n*Email:* ${formData.email}\n*Grade of Interest:* ${formData.grade}\n*Message:* ${formData.message || "N/A"}\n\nI look forward to hearing from you.`
     );
