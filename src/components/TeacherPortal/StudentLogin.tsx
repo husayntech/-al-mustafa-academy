@@ -106,6 +106,9 @@ export default function StudentLogin({ onBack }: StudentLoginProps) {
     }
   };
 
+  const [termReports, setTermReports] = useState<any[]>([]);
+  const [attendanceSummary, setAttendanceSummary] = useState<{ status: string; count: number }[]>([]);
+
   const fetchResults = async (authToken: string) => {
     try {
       const res = await fetch("/api/student/my-results", {
@@ -114,6 +117,8 @@ export default function StudentLogin({ onBack }: StudentLoginProps) {
       const data = await res.json();
       setResults(data.results || []);
       setSubjects(data.subjects || []);
+      setTermReports(data.termReports || []);
+      setAttendanceSummary(data.attendance || []);
     } catch (err) {
       console.error("Failed to fetch results:", err);
     }
@@ -367,6 +372,46 @@ export default function StudentLogin({ onBack }: StudentLoginProps) {
                   ))}
                 </div>
               </div>
+
+              {/* Attendance Summary */}
+              {attendanceSummary.length > 0 && (
+                <div className="mt-5 grid grid-cols-3 gap-2">
+                  {["present", "late", "absent"].map((st) => {
+                    const item = attendanceSummary.find((a) => a.status === st);
+                    return (
+                      <div key={st} className={`text-center p-3 rounded-lg ${st === "present" ? "bg-green-50" : st === "late" ? "bg-amber-50" : "bg-red-50"}`}>
+                        <p className={`text-lg font-bold ${st === "present" ? "text-green-600" : st === "late" ? "text-amber-600" : "text-red-600"}`}>{item?.count || 0}</p>
+                        <p className="text-[9px] font-bold text-on-surface-variant uppercase tracking-wider">{st === "present" ? "Present" : st === "late" ? "Late" : "Absent"}</p>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+
+              {/* Term Report — Hifdh & Behaviour */}
+              {(() => {
+                const report = termReports.find((r) => r.term === selectedTerm);
+                if (!report || (!report.hifdh_progress && !report.behavior_remarks)) return null;
+                return (
+                  <div className="mt-5 bg-surface-container-low rounded-lg p-4">
+                    <p className="text-[10px] font-bold text-primary uppercase tracking-wider mb-2">Term Report</p>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs">
+                      {report.hifdh_progress && (
+                        <div>
+                          <p className="text-[10px] font-bold text-on-surface-variant/60 uppercase tracking-wider mb-1">Qur'an Hifdh Progress</p>
+                          <p className="text-on-surface whitespace-pre-line">{report.hifdh_progress}</p>
+                        </div>
+                      )}
+                      {report.behavior_remarks && (
+                        <div>
+                          <p className="text-[10px] font-bold text-on-surface-variant/60 uppercase tracking-wider mb-1">Behavioural Remarks</p>
+                          <p className="text-on-surface whitespace-pre-line">{report.behavior_remarks}</p>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                );
+              })()}
 
               <button onClick={handleDownloadPDF} disabled={exporting}
                 className="mt-4 flex items-center gap-1.5 text-xs bg-primary text-white px-4 py-2.5 rounded-lg font-semibold hover:bg-primary-container transition-colors cursor-pointer ml-auto disabled:opacity-50">

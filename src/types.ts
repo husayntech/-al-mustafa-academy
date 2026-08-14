@@ -84,11 +84,24 @@ export interface Result {
   year: string;
   test_score: number | null;      // Max 30
   exam_score: number | null;      // Max 70
+  ca1_score?: number | null;      // CA breakdown component 1 (max 10)
+  ca2_score?: number | null;      // CA breakdown component 2 (max 10)
+  ca3_score?: number | null;      // CA breakdown component 3 (max 10)
   total_score: number | null;     // Computed: test + exam
   remarks: string | null;
   created_at: string;
   subject_name?: string;
   book_name?: string;
+}
+
+export interface TermReport {
+  id?: number;
+  student_id: number;
+  class_id: number;
+  term: number;
+  year: string;
+  hifdh_progress: string | null;
+  behavior_remarks: string | null;
 }
 
 export interface User {

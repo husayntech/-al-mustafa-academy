@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { motion } from "motion/react";
 import {
   ArrowLeft, Save, Download, CheckCircle, AlertCircle,
-  FileText, GraduationCap, Printer, Loader2
+  FileText, GraduationCap, Printer, Loader2, BookOpen
 } from "lucide-react";
 import { Student, Subject, Result } from "../../types";
 import {
@@ -52,11 +52,15 @@ export default function StudentResultsForm({ student, className, token, onBack, 
   const [success, setSuccess] = useState(false);
   const [error, setError] = useState("");
 
-  const [formMap, setFormMap] = useState<Record<string, { test: string; exam: string; remarks: string }>>({});
+  const [formMap, setFormMap] = useState<Record<string, { ca1: string; ca2: string; ca3: string; test: string; exam: string; remarks: string }>>({});
+  const [hifdhProgress, setHifdhProgress] = useState("");
+  const [behaviorRemarks, setBehaviorRemarks] = useState("");
+  const [termReportSaving, setTermReportSaving] = useState(false);
 
   useEffect(() => {
     fetchSubjects();
     fetchResults();
+    fetchTermReport();
   }, [selectedTerm]);
 
   const fetchSubjects = async () => {
@@ -78,7 +82,7 @@ export default function StudentResultsForm({ student, className, token, onBack, 
       });
       const data = await res.json();
       const resultsMap: Record<string, Result> = {};
-      const formMapData: Record<string, { test: string; exam: string; remarks: string }> = {};
+      const formMapData: Record<string, { ca1: string; ca2: string; ca3: string; test: string; exam: string; remarks: string }> = {};
 
       const termResults = (data.results || []).filter(
         (r: Result) => r.term === selectedTerm && r.year === ACADEMIC_YEAR
@@ -87,6 +91,9 @@ export default function StudentResultsForm({ student, className, token, onBack, 
       for (const r of termResults) {
         resultsMap[`${r.subject_id}`] = r;
         formMapData[`${r.subject_id}`] = {
+          ca1: r.ca1_score?.toString() || "",
+          ca2: r.ca2_score?.toString() || "",
+          ca3: r.ca3_score?.toString() || "",
           test: r.test_score?.toString() || "",
           exam: r.exam_score?.toString() || "",
           remarks: r.remarks || "",
@@ -127,6 +134,59 @@ export default function StudentResultsForm({ student, className, token, onBack, 
     setError("");
   };
 
+  const handleCaChange = (subjectId: number, caField: "ca1" | "ca2" | "ca3", value: string) => {
+    setFormMap((prev) => {
+      const current = prev[`${subjectId}`] || { ca1: "", ca2: "", ca3: "", test: "", exam: "", remarks: "" };
+      const next = { ...current, [caField]: value };
+      // When all three CA components are filled, auto-fill the Test (CA) total
+      if (next.ca1 !== "" && next.ca2 !== "" && next.ca3 !== "") {
+        const sum = (parseFloat(next.ca1) || 0) + (parseFloat(next.ca2) || 0) + (parseFloat(next.ca3) || 0);
+        next.test = String(Math.min(sum, 30));
+      }
+      return { ...prev, [`${subjectId}`]: next };
+    });
+    setSuccess(false);
+    setError("");
+  };
+
+  const fetchTermReport = async () => {
+    try {
+      const res = await fetch(`/api/students/${student.id}/term-report?term=${selectedTerm}&year=${ACADEMIC_YEAR}`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      const data = await res.json();
+      setHifdhProgress(data.report?.hifdh_progress || "");
+      setBehaviorRemarks(data.report?.behavior_remarks || "");
+    } catch (err) {
+      console.error("Failed to fetch term report:", err);
+    }
+  };
+
+  const saveTermReport = async () => {
+    setTermReportSaving(true);
+    try {
+      const res = await fetch(`/api/students/${student.id}/term-report`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+        body: JSON.stringify({
+          term: selectedTerm,
+          year: ACADEMIC_YEAR,
+          hifdh_progress: hifdhProgress,
+          behavior_remarks: behaviorRemarks,
+        }),
+      });
+      if (res.ok) {
+        setSuccess(true);
+      } else {
+        setError("Failed to save term report");
+      }
+    } catch (err) {
+      setError("Connection error. Please try again.");
+    }
+    setTermReportSaving(false);
+    setTimeout(() => setSuccess(false), 3000);
+  };
+
   const getTotal = (subjectId: number): number => {
     const data = formMap[`${subjectId}`];
     if (!data) return 0;
@@ -150,7 +210,7 @@ export default function StudentResultsForm({ student, className, token, onBack, 
   const handleViewResult = () => {
     // Build results array from form data
     const resultsData: Result[] = subjects.map((subj) => {
-      const formData = formMap[`${subj.id}`] || { test: "", exam: "", remarks: "" };
+      const formData = formMap[`${subj.id}`] || { ca1: "", ca2: "", ca3: "", test: "", exam: "", remarks: "" };
       const test = formData.test ? parseFloat(formData.test) : null;
       const exam = formData.exam ? parseFloat(formData.exam) : null;
       const total = (test || 0) + (exam || 0);
@@ -162,6 +222,9 @@ export default function StudentResultsForm({ student, className, token, onBack, 
         year: ACADEMIC_YEAR,
         test_score: test,
         exam_score: exam,
+        ca1_score: formData.ca1 ? parseFloat(formData.ca1) : null,
+        ca2_score: formData.ca2 ? parseFloat(formData.ca2) : null,
+        ca3_score: formData.ca3 ? parseFloat(formData.ca3) : null,
         total_score: total > 0 ? total : null,
         remarks: formData.remarks || null,
         created_at: new Date().toISOString(),
@@ -178,7 +241,7 @@ export default function StudentResultsForm({ student, className, token, onBack, 
     setSuccess(false);
 
     const resultsData = subjects.map((subj) => {
-      const formData = formMap[`${subj.id}`] || { test: "", exam: "", remarks: "" };
+      const formData = formMap[`${subj.id}`] || { ca1: "", ca2: "", ca3: "", test: "", exam: "", remarks: "" };
       const test = formData.test ? parseFloat(formData.test) : null;
       const exam = formData.exam ? parseFloat(formData.exam) : null;
       return {
@@ -188,6 +251,9 @@ export default function StudentResultsForm({ student, className, token, onBack, 
         year: ACADEMIC_YEAR,
         test_score: test,
         exam_score: exam,
+        ca1_score: formData.ca1 ? parseFloat(formData.ca1) : null,
+        ca2_score: formData.ca2 ? parseFloat(formData.ca2) : null,
+        ca3_score: formData.ca3 ? parseFloat(formData.ca3) : null,
         remarks: formData.remarks || null,
       };
     });
@@ -223,7 +289,7 @@ export default function StudentResultsForm({ student, className, token, onBack, 
     try {
       const config = await fetchResultSheetConfig();
       const resultsData: Result[] = subjects.map((subj) => {
-        const formData = formMap[`${subj.id}`] || { test: "", exam: "", remarks: "" };
+        const formData = formMap[`${subj.id}`] || { ca1: "", ca2: "", ca3: "", test: "", exam: "", remarks: "" };
         const test = formData.test ? parseFloat(formData.test) : null;
         const exam = formData.exam ? parseFloat(formData.exam) : null;
         const total = (test || 0) + (exam || 0);
@@ -235,6 +301,9 @@ export default function StudentResultsForm({ student, className, token, onBack, 
           year: ACADEMIC_YEAR,
           test_score: test,
           exam_score: exam,
+          ca1_score: formData.ca1 ? parseFloat(formData.ca1) : null,
+          ca2_score: formData.ca2 ? parseFloat(formData.ca2) : null,
+          ca3_score: formData.ca3 ? parseFloat(formData.ca3) : null,
           total_score: total > 0 ? total : null,
           remarks: formData.remarks || null,
           created_at: new Date().toISOString(),
@@ -398,9 +467,10 @@ export default function StudentResultsForm({ student, className, token, onBack, 
 
           <div className="divide-y divide-primary/5">
             {subjects.map((subj) => {
-              const formData = formMap[`${subj.id}`] || { test: "", exam: "", remarks: "" };
+              const formData = formMap[`${subj.id}`] || { ca1: "", ca2: "", ca3: "", test: "", exam: "", remarks: "" };
               const total = getTotal(subj.id);
               const grade = getGrade(subj.id);
+              const caSum = (parseFloat(formData.ca1 || "0") || 0) + (parseFloat(formData.ca2 || "0") || 0) + (parseFloat(formData.ca3 || "0") || 0);
               return (
                 <div key={subj.id} className="px-5 py-2.5 hover:bg-surface-container-low transition-colors">
                   <div className="grid grid-cols-12 gap-2 items-center">
@@ -456,6 +526,25 @@ export default function StudentResultsForm({ student, className, token, onBack, 
                       />
                     </div>
                   </div>
+                  {/* CA breakdown row — optional, each component /10, auto-fills Test */}
+                  <div className="flex items-center justify-end gap-2 mt-1.5">
+                    <span className="text-[9px] font-bold text-on-surface-variant/60 uppercase tracking-wider mr-1">CA Breakdown (optional):</span>
+                    {(["ca1", "ca2", "ca3"] as const).map((f, idx) => (
+                      <input
+                        key={f}
+                        type="number"
+                        min="0"
+                        max="10"
+                        value={formData[f]}
+                        onChange={(e) => handleCaChange(subj.id, f, e.target.value)}
+                        placeholder={`CA${idx + 1}`}
+                        className="w-14 bg-surface border border-primary/10 px-2 py-1 text-xs rounded-lg focus:outline-none focus:border-secondary transition-colors text-center"
+                      />
+                    ))}
+                    <span className="text-[10px] text-on-surface-variant/70">
+                      = <b className="text-primary">{caSum}/30</b> CA total
+                    </span>
+                  </div>
                 </div>
               );
             })}
@@ -478,6 +567,46 @@ export default function StudentResultsForm({ student, className, token, onBack, 
                 </span>
               </div>
               <div className="col-span-2 sm:col-span-2" />
+            </div>
+          </div>
+        </div>
+
+        {/* Term Report — Hifdh progress & behaviour remarks */}
+        <div className="mt-6 bg-white border border-primary/5 rounded-xl overflow-hidden shadow-xs">
+          <div className="bg-surface-container-low px-5 py-3 border-b border-primary/5 flex items-center justify-between gap-3">
+            <h3 className="text-xs font-bold text-primary uppercase tracking-wider flex items-center gap-2">
+              <BookOpen className="w-3.5 h-3.5 text-secondary" />
+              Term Report — Hifdh & Behaviour
+            </h3>
+            <button
+              onClick={saveTermReport}
+              disabled={termReportSaving}
+              className="flex items-center gap-1.5 text-xs bg-primary text-white hover:bg-primary-hover px-3 py-1.5 rounded-lg transition-colors cursor-pointer disabled:opacity-50 font-semibold"
+            >
+              <Save className="w-3.5 h-3.5" />
+              {termReportSaving ? "Saving..." : "Save Report"}
+            </button>
+          </div>
+          <div className="p-5 grid grid-cols-1 md:grid-cols-2 gap-5">
+            <div>
+              <label className="block text-[10px] font-bold text-on-surface-variant uppercase tracking-wider mb-1.5">Qur'an Hifdh Progress</label>
+              <textarea
+                value={hifdhProgress}
+                onChange={(e) => setHifdhProgress(e.target.value)}
+                rows={3}
+                placeholder="e.g. Completed Juz 1–3; currently memorising Juz 4 (15 pages)."
+                className="w-full bg-surface border border-primary/10 px-3 py-2 text-xs rounded-lg focus:outline-none focus:border-secondary transition-colors"
+              />
+            </div>
+            <div>
+              <label className="block text-[10px] font-bold text-on-surface-variant uppercase tracking-wider mb-1.5">Behavioural Remarks</label>
+              <textarea
+                value={behaviorRemarks}
+                onChange={(e) => setBehaviorRemarks(e.target.value)}
+                rows={3}
+                placeholder="Teacher's comments on conduct, effort, and manners."
+                className="w-full bg-surface border border-primary/10 px-3 py-2 text-xs rounded-lg focus:outline-none focus:border-secondary transition-colors"
+              />
             </div>
           </div>
         </div>

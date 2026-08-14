@@ -850,7 +850,7 @@ app.get("/api/students/:studentId/results", authMiddleware, async (req: Authenti
 
 app.post("/api/results", authMiddleware, async (req: AuthenticatedRequest, res: Response) => {
   try {
-    const { student_id, subject_id, term, year, test_score, exam_score, remarks } = req.body;
+    const { student_id, subject_id, term, year, test_score, exam_score, ca1_score, ca2_score, ca3_score, remarks } = req.body;
 
     // Teachers can only save results for students in their assigned classes
     const student = await queryOne("SELECT class_id FROM students WHERE id = $1", [student_id]);
@@ -867,17 +867,20 @@ app.post("/api/results", authMiddleware, async (req: AuthenticatedRequest, res: 
 
     const ts = test_score !== undefined && test_score !== null && test_score !== '' ? parseFloat(test_score) : null;
     const es = exam_score !== undefined && exam_score !== null && exam_score !== '' ? parseFloat(exam_score) : null;
+    const ca1 = ca1_score !== undefined && ca1_score !== null && ca1_score !== '' ? parseFloat(ca1_score) : null;
+    const ca2 = ca2_score !== undefined && ca2_score !== null && ca2_score !== '' ? parseFloat(ca2_score) : null;
+    const ca3 = ca3_score !== undefined && ca3_score !== null && ca3_score !== '' ? parseFloat(ca3_score) : null;
 
     if (existing) {
       await execute(
-        "UPDATE results SET test_score = $1, exam_score = $2, remarks = $3 WHERE id = $4",
-        [ts, es, remarks || null, existing.id]
+        "UPDATE results SET test_score = $1, exam_score = $2, ca1_score = $3, ca2_score = $4, ca3_score = $5, remarks = $6 WHERE id = $7",
+        [ts, es, ca1, ca2, ca3, remarks || null, existing.id]
       );
       res.json({ id: existing.id, message: "Result updated successfully" });
     } else {
       const id = await execute(
-        "INSERT INTO results (student_id, subject_id, term, year, test_score, exam_score, remarks) VALUES ($1, $2, $3, $4, $5, $6, $7)",
-        [student_id, subject_id, term, year, ts, es, remarks || null]
+        "INSERT INTO results (student_id, subject_id, term, year, test_score, exam_score, ca1_score, ca2_score, ca3_score, remarks) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)",
+        [student_id, subject_id, term, year, ts, es, ca1, ca2, ca3, remarks || null]
       );
       res.json({ id, message: "Result saved successfully" });
     }
@@ -908,9 +911,12 @@ app.post("/api/results/bulk", authMiddleware, async (req: AuthenticatedRequest, 
     }
 
     for (const r of results) {
-      const { student_id, subject_id, term, year, test_score, exam_score, remarks } = r;
+      const { student_id, subject_id, term, year, test_score, exam_score, ca1_score, ca2_score, ca3_score, remarks } = r;
       const ts = test_score !== undefined && test_score !== null && test_score !== '' ? parseFloat(test_score) : null;
       const es = exam_score !== undefined && exam_score !== null && exam_score !== '' ? parseFloat(exam_score) : null;
+      const ca1 = ca1_score !== undefined && ca1_score !== null && ca1_score !== '' ? parseFloat(ca1_score) : null;
+      const ca2 = ca2_score !== undefined && ca2_score !== null && ca2_score !== '' ? parseFloat(ca2_score) : null;
+      const ca3 = ca3_score !== undefined && ca3_score !== null && ca3_score !== '' ? parseFloat(ca3_score) : null;
       const existing = await queryOne(
         "SELECT id FROM results WHERE student_id = $1 AND subject_id = $2 AND term = $3 AND year = $4",
         [student_id, subject_id, term, year]
@@ -918,13 +924,13 @@ app.post("/api/results/bulk", authMiddleware, async (req: AuthenticatedRequest, 
 
       if (existing) {
         await execute(
-          "UPDATE results SET test_score = $1, exam_score = $2, remarks = $3 WHERE id = $4",
-          [ts, es, remarks || null, existing.id]
+          "UPDATE results SET test_score = $1, exam_score = $2, ca1_score = $3, ca2_score = $4, ca3_score = $5, remarks = $6 WHERE id = $7",
+          [ts, es, ca1, ca2, ca3, remarks || null, existing.id]
         );
       } else {
         await execute(
-          "INSERT INTO results (student_id, subject_id, term, year, test_score, exam_score, remarks) VALUES ($1, $2, $3, $4, $5, $6, $7)",
-          [student_id, subject_id, term, year, ts, es, remarks || null]
+          "INSERT INTO results (student_id, subject_id, term, year, test_score, exam_score, ca1_score, ca2_score, ca3_score, remarks) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)",
+          [student_id, subject_id, term, year, ts, es, ca1, ca2, ca3, remarks || null]
         );
       }
     }
@@ -933,6 +939,141 @@ app.post("/api/results/bulk", authMiddleware, async (req: AuthenticatedRequest, 
   } catch (error: any) {
     console.error("Bulk result save error:", error);
     res.status(500).json({ error: "Failed to save results" });
+  }
+});
+
+// --- Attendance Routes ---
+app.get("/api/classes/:id/attendance", authMiddleware, async (req: AuthenticatedRequest, res: Response) => {
+  try {
+    const classId = parseInt(req.params.id);
+    if (!(await hasClassAccess(req.user, classId))) {
+      return res.status(403).json({ error: "You are not assigned to this class" });
+    }
+    const date = String(req.query.date || new Date().toISOString().split("T")[0]);
+    const students = await queryAll(
+      `SELECT id, full_name, surname, first_name, middle_name FROM students WHERE class_id = $1 ORDER BY full_name`,
+      [classId]
+    );
+    const records = await queryAll(
+      `SELECT student_id, status FROM attendance WHERE class_id = $1 AND session_date = $2`,
+      [classId, date]
+    );
+    res.json({ date, students, records });
+  } catch (error: any) {
+    console.error("Attendance fetch error:", error);
+    res.status(500).json({ error: "Failed to fetch attendance" });
+  }
+});
+
+app.put("/api/classes/:id/attendance", authMiddleware, async (req: AuthenticatedRequest, res: Response) => {
+  try {
+    const classId = parseInt(req.params.id);
+    if (!(await hasClassAccess(req.user, classId))) {
+      return res.status(403).json({ error: "You are not assigned to this class" });
+    }
+    const { date, entries } = req.body;
+    if (!date || !Array.isArray(entries)) {
+      return res.status(400).json({ error: "date and entries are required" });
+    }
+    for (const entry of entries) {
+      const status = ["present", "absent", "late"].includes(entry?.status) ? entry.status : "present";
+      const sid = parseInt(entry?.studentId);
+      if (!sid) continue;
+      const existing = await queryOne(
+        "SELECT id FROM attendance WHERE student_id = $1 AND session_date = $2",
+        [sid, date]
+      );
+      if (existing) {
+        await execute("UPDATE attendance SET status = $1 WHERE id = $2", [status, existing.id]);
+      } else {
+        await execute(
+          "INSERT INTO attendance (class_id, student_id, session_date, status, marked_by) VALUES ($1, $2, $3, $4, $5)",
+          [classId, sid, date, status, req.user?.id || null]
+        );
+      }
+    }
+    res.json({ message: `${entries.length} attendance records saved` });
+  } catch (error: any) {
+    console.error("Attendance save error:", error);
+    res.status(500).json({ error: "Failed to save attendance" });
+  }
+});
+
+app.get("/api/students/:id/attendance", authMiddleware, async (req: AuthenticatedRequest, res: Response) => {
+  try {
+    const studentId = parseInt(req.params.id);
+    const student = await queryOne("SELECT class_id FROM students WHERE id = $1", [studentId]);
+    if (!student) return res.status(404).json({ error: "Student not found" });
+    const isSelf = req.user?.type === "student" && Number(req.user?.id) === studentId;
+    if (!isSelf && !(await hasClassAccess(req.user, student.class_id))) {
+      return res.status(403).json({ error: "Access denied" });
+    }
+    const summary = await queryAll(
+      `SELECT status, COUNT(*)::int as count FROM attendance WHERE student_id = $1 GROUP BY status`,
+      [studentId]
+    );
+    const records = await queryAll(
+      `SELECT session_date, status FROM attendance WHERE student_id = $1 ORDER BY session_date DESC LIMIT 60`,
+      [studentId]
+    );
+    res.json({ summary, records });
+  } catch (error: any) {
+    console.error("Student attendance error:", error);
+    res.status(500).json({ error: "Failed to fetch attendance" });
+  }
+});
+
+// --- Term Report Routes (Hifdh progress + behaviour remarks) ---
+app.get("/api/students/:id/term-report", authMiddleware, async (req: AuthenticatedRequest, res: Response) => {
+  try {
+    const studentId = parseInt(req.params.id);
+    const term = parseInt(String(req.query.term || "1"));
+    const year = String(req.query.year || "");
+    const student = await queryOne("SELECT class_id FROM students WHERE id = $1", [studentId]);
+    if (!student) return res.status(404).json({ error: "Student not found" });
+    const isSelf = req.user?.type === "student" && Number(req.user?.id) === studentId;
+    if (!isSelf && !(await hasClassAccess(req.user, student.class_id))) {
+      return res.status(403).json({ error: "Access denied" });
+    }
+    const report = await queryOne(
+      `SELECT * FROM student_term_reports WHERE student_id = $1 AND term = $2 AND year = $3`,
+      [studentId, term, year]
+    );
+    res.json({ report });
+  } catch (error: any) {
+    console.error("Term report fetch error:", error);
+    res.status(500).json({ error: "Failed to fetch term report" });
+  }
+});
+
+app.put("/api/students/:id/term-report", authMiddleware, async (req: AuthenticatedRequest, res: Response) => {
+  try {
+    const studentId = parseInt(req.params.id);
+    const { term, year, hifdh_progress, behavior_remarks } = req.body;
+    const student = await queryOne("SELECT class_id FROM students WHERE id = $1", [studentId]);
+    if (!student) return res.status(404).json({ error: "Student not found" });
+    if (!(await hasClassAccess(req.user, student.class_id))) {
+      return res.status(403).json({ error: "You are not assigned to this student's class" });
+    }
+    const existing = await queryOne(
+      "SELECT id FROM student_term_reports WHERE student_id = $1 AND term = $2 AND year = $3",
+      [studentId, term, year]
+    );
+    if (existing) {
+      await execute(
+        "UPDATE student_term_reports SET hifdh_progress = $1, behavior_remarks = $2, updated_at = NOW() WHERE id = $3",
+        [hifdh_progress || null, behavior_remarks || null, existing.id]
+      );
+    } else {
+      await execute(
+        "INSERT INTO student_term_reports (student_id, class_id, term, year, hifdh_progress, behavior_remarks) VALUES ($1, $2, $3, $4, $5, $6)",
+        [studentId, student.class_id, term, year, hifdh_progress || null, behavior_remarks || null]
+      );
+    }
+    res.json({ message: "Term report saved" });
+  } catch (error: any) {
+    console.error("Term report save error:", error);
+    res.status(500).json({ error: "Failed to save term report" });
   }
 });
 
@@ -1605,7 +1746,15 @@ app.get("/api/student/my-results", authMiddleware, async (req: AuthenticatedRequ
       [req.user.id]
     );
     const subjects = await queryAll("SELECT * FROM subjects WHERE class_id = $1 ORDER BY id", [req.user.class_id]);
-    res.json({ results, subjects });
+    const termReports = await queryAll(
+      "SELECT * FROM student_term_reports WHERE student_id = $1 ORDER BY term ASC",
+      [req.user.id]
+    );
+    const attendance = await queryAll(
+      `SELECT status, COUNT(*)::int as count FROM attendance WHERE student_id = $1 GROUP BY status`,
+      [req.user.id]
+    );
+    res.json({ results, subjects, termReports, attendance });
   } catch (error: any) {
     res.status(500).json({ error: "Failed to fetch results" });
   }

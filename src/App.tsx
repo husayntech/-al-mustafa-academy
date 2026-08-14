@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { lazy, Suspense, useEffect, useState } from "react";
 import { motion, AnimatePresence, useScroll, useSpring } from "motion/react";
 import { ArrowUp, GraduationCap } from "lucide-react";
 import { ScreenId, User, Student, Class, Subject, Result } from "./types";
@@ -15,20 +15,32 @@ import MadrasahActivitiesTab from "./components/MadrasahActivitiesTab";
 import FAQSection from "./components/FAQSection";
 import GallerySection from "./components/GallerySection";
 
-import Chatbot from "./components/Chatbot";
 import WhatsAppWidget from "./components/WhatsAppWidget";
-import ContentInspector from "./components/ContentInspector";
-import SpacingGuide from "./components/SpacingGuide";
-import LoginPage from "./components/TeacherPortal/LoginPage";
-import StudentLogin from "./components/TeacherPortal/StudentLogin";
-import TeacherLandingPage from "./components/TeacherPortal/TeacherLandingPage";
-import TeacherDashboard from "./components/TeacherPortal/TeacherDashboard";
-import ClassDetail from "./components/TeacherPortal/ClassDetail";
-import StudentResultsForm from "./components/TeacherPortal/StudentResultsForm";
-import StudentResultPage from "./components/TeacherPortal/StudentResultPage";
-import SubjectsView from "./components/TeacherPortal/SubjectsView";
-import AdminSettings from "./components/TeacherPortal/AdminSettings";
-import AdminLoginPage from "./components/TeacherPortal/AdminLoginPage";
+
+// Portal screens, the chatbot, and the admin edit-mode tools are lazy-loaded so
+// the public landing page ships a small bundle — the heavy JS (Gemini SDK,
+// jsPDF/html2canvas, admin/portal screens) only downloads when actually used.
+const Chatbot = lazy(() => import("./components/Chatbot"));
+const ContentInspector = lazy(() => import("./components/ContentInspector"));
+const SpacingGuide = lazy(() => import("./components/SpacingGuide"));
+const LoginPage = lazy(() => import("./components/TeacherPortal/LoginPage"));
+const StudentLogin = lazy(() => import("./components/TeacherPortal/StudentLogin"));
+const TeacherLandingPage = lazy(() => import("./components/TeacherPortal/TeacherLandingPage"));
+const TeacherDashboard = lazy(() => import("./components/TeacherPortal/TeacherDashboard"));
+const ClassDetail = lazy(() => import("./components/TeacherPortal/ClassDetail"));
+const StudentResultsForm = lazy(() => import("./components/TeacherPortal/StudentResultsForm"));
+const StudentResultPage = lazy(() => import("./components/TeacherPortal/StudentResultPage"));
+const SubjectsView = lazy(() => import("./components/TeacherPortal/SubjectsView"));
+const AdminSettings = lazy(() => import("./components/TeacherPortal/AdminSettings"));
+const AdminLoginPage = lazy(() => import("./components/TeacherPortal/AdminLoginPage"));
+
+function PageLoading() {
+  return (
+    <div className="min-h-screen bg-background flex items-center justify-center">
+      <div className="animate-spin h-8 w-8 border-2 border-primary border-t-transparent rounded-full" />
+    </div>
+  );
+}
 
 export default function App() {
   const [contentVersion, setContentVersion] = useState(0);
@@ -254,86 +266,118 @@ export default function App() {
 
   // Student portal (surname-based login)
   if (currentScreen === "student-login") {
-    return <StudentLogin onBack={() => setCurrentScreen("home")} />;
+    return (
+      <Suspense fallback={<PageLoading />}>
+        <StudentLogin onBack={() => setCurrentScreen("home")} />
+      </Suspense>
+    );
   }
 
   // Hidden admin login modal (overlays the main content)
   if (showAdminLoginModal) {
-    return <AdminLoginPage onLoginSuccess={handleAdminLoginSuccess} onBack={handleCloseAdminLogin} />;
+    return (
+      <Suspense fallback={<PageLoading />}>
+        <AdminLoginPage onLoginSuccess={handleAdminLoginSuccess} onBack={handleCloseAdminLogin} />
+      </Suspense>
+    );
   }
 
   // Render teacher portal content
   if (currentScreen === "teacher-landing") {
-    return <TeacherLandingPage onLogin={handleGoToLogin} onBack={() => setCurrentScreen("home")} />;
+    return (
+      <Suspense fallback={<PageLoading />}>
+        <TeacherLandingPage onLogin={handleGoToLogin} onBack={() => setCurrentScreen("home")} />
+      </Suspense>
+    );
   }
 
   if (currentScreen === "teacher-login") {
-    return <LoginPage onLoginSuccess={handleLoginSuccess} onBack={() => setCurrentScreen("home")} />;
+    return (
+      <Suspense fallback={<PageLoading />}>
+        <LoginPage onLoginSuccess={handleLoginSuccess} onBack={() => setCurrentScreen("home")} />
+      </Suspense>
+    );
   }
 
   if (currentScreen === "teacher-portal" && token && user) {
     // Admin settings
     if (showAdminSettings && (user.role === "admin" || user.is_admin)) {
-      return <AdminSettings token={token} user={user} onBack={handleBackFromAdmin} />;
+      return (
+        <Suspense fallback={<PageLoading />}>
+          <AdminSettings token={token} user={user} onBack={handleBackFromAdmin} />
+        </Suspense>
+      );
     }
 
     // Show subjects view
     if (selectedClass && showSubjects) {
-      return <SubjectsView classData={selectedClass} token={token} onBack={handleBackToClass} />;
+      return (
+        <Suspense fallback={<PageLoading />}>
+          <SubjectsView classData={selectedClass} token={token} onBack={handleBackToClass} />
+        </Suspense>
+      );
     }
 
     // Show student result page (formatted sheet)
     if (selectedClass && selectedStudent && showResultPage && resultPageData) {
       return (
-        <StudentResultPage
-          student={selectedStudent}
-          className={selectedClass.name}
-          classNameArabic={selectedClass.name_arabic}
-          subjects={resultPageData.subjects}
-          results={resultPageData.results}
-          term={resultPageData.term}
-          academicYear={resultPageData.academicYear}
-          onBack={handleBackToResultsForm}
-        />
+        <Suspense fallback={<PageLoading />}>
+          <StudentResultPage
+            student={selectedStudent}
+            className={selectedClass.name}
+            classNameArabic={selectedClass.name_arabic}
+            subjects={resultPageData.subjects}
+            results={resultPageData.results}
+            term={resultPageData.term}
+            academicYear={resultPageData.academicYear}
+            onBack={handleBackToResultsForm}
+          />
+        </Suspense>
       );
     }
 
     // Show student results form
     if (selectedClass && selectedStudent) {
       return (
-        <StudentResultsForm
-          student={selectedStudent}
-          className={selectedClass.name}
-          token={token}
-          onBack={handleBackToClass}
-          onViewResult={handleShowResultPage}
-        />
+        <Suspense fallback={<PageLoading />}>
+          <StudentResultsForm
+            student={selectedStudent}
+            className={selectedClass.name}
+            token={token}
+            onBack={handleBackToClass}
+            onViewResult={handleShowResultPage}
+          />
+        </Suspense>
       );
     }
 
     // Show class detail
     if (selectedClass) {
       return (
-        <ClassDetail
-          classData={selectedClass}
-          token={token}
-          userRole={user?.role}
-          onBack={handleBackToDashboard}
-          onStudentResults={handleStudentResults}
-          onSubjects={handleShowSubjects}
-        />
+        <Suspense fallback={<PageLoading />}>
+          <ClassDetail
+            classData={selectedClass}
+            token={token}
+            userRole={user?.role}
+            onBack={handleBackToDashboard}
+            onStudentResults={handleStudentResults}
+            onSubjects={handleShowSubjects}
+          />
+        </Suspense>
       );
     }
 
     // Show dashboard
     return (
-      <TeacherDashboard
-        user={user}
-        token={token}
-        onLogout={handleLogoutFromPortal}
-        onSelectClass={handleSelectClass}
-        onAdminSettings={handleGoToAdmin}
-      />
+      <Suspense fallback={<PageLoading />}>
+        <TeacherDashboard
+          user={user}
+          token={token}
+          onLogout={handleLogoutFromPortal}
+          onSelectClass={handleSelectClass}
+          onAdminSettings={handleGoToAdmin}
+        />
+      </Suspense>
     );
   }
 
@@ -375,14 +419,16 @@ export default function App() {
       />
 
       {/* Floating Overlays (positioned fixed, outside layout flow) */}
-      <Chatbot />
+      <Suspense fallback={null}>
+        <Chatbot />
+      </Suspense>
       <WhatsAppWidget />
       {/* Style Inspector + Style Editor — only when Edit Mode is enabled (admin only) */}
       {editModeOn && (user?.role === "admin" || user?.is_admin) && (
-        <>
+        <Suspense fallback={null}>
           <ContentInspector />
           <SpacingGuide />
-        </>
+        </Suspense>
       )}
 
       {/* Sticky Apply Now Button */}

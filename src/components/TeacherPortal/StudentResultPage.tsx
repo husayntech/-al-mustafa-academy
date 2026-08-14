@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import { motion } from "motion/react";
 import { ArrowLeft, Printer, Download, Loader2 } from "lucide-react";
-import { Student, Subject, Result } from "../../types";
+import { Student, Subject, Result, TermReport } from "../../types";
 import {
   fetchResultSheetConfig,
   buildResultSheetData,
@@ -34,6 +34,7 @@ export default function StudentResultPage({
   const [config, setConfig] = useState<Record<string, string>>(RESULT_SHEET_DEFAULTS);
   const [loadingConfig, setLoadingConfig] = useState(true);
   const [exporting, setExporting] = useState(false);
+  const [termReport, setTermReport] = useState<TermReport | null>(null);
   const sheetRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -43,10 +44,23 @@ export default function StudentResultPage({
       setConfig(cfg);
       setLoadingConfig(false);
     });
+    fetch(`/api/students/${student.id}/term-report?term=${term}&year=${encodeURIComponent(academicYear)}`)
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data) => {
+        if (!active) return;
+        if (data?.report) setTermReport(data.report);
+      })
+      .catch(() => {});
     return () => {
       active = false;
     };
   }, []);
+
+  // Subjects with any CA breakdown recorded
+  const caRows = results.filter((r) => r.ca1_score != null || r.ca2_score != null || r.ca3_score != null);
+  const hasCa = caRows.length > 0;
+  const caTotal = (r: Result) =>
+    ((r.ca1_score as number) || 0) + ((r.ca2_score as number) || 0) + ((r.ca3_score as number) || 0);
 
   const data = buildResultSheetData({
     config,
@@ -129,6 +143,62 @@ export default function StudentResultPage({
             className="print-sheet bg-white rounded-xl shadow-lg overflow-hidden"
             dangerouslySetInnerHTML={{ __html: sheetHtml }}
           />
+        )}
+
+        {/* Term Report — CA breakdown, Hifdh progress & behaviour remarks */}
+        {(hasCa || termReport?.hifdh_progress || termReport?.behavior_remarks) && (
+          <div className="print-sheet bg-white rounded-xl shadow-lg overflow-hidden mt-8">
+            <div className="bg-primary text-white px-6 py-3.5">
+              <h2 className="font-serif text-base font-bold">Term Report</h2>
+              <p className="text-white/70 text-xs">Continuous Assessment · Qur'an Hifdh · Behaviour — Term {term}</p>
+            </div>
+            <div className="p-6">
+              {hasCa && (
+                <div className="mb-6">
+                  <h3 className="text-[11px] font-bold text-on-surface-variant uppercase tracking-wider mb-2">Continuous Assessment Breakdown (each component /10)</h3>
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-xs border-collapse">
+                      <thead>
+                        <tr className="bg-surface-container-low">
+                          <th className="border border-primary/10 px-3 py-2 text-left font-bold text-primary">Subject</th>
+                          <th className="border border-primary/10 px-3 py-2 text-center font-bold text-primary">CA1</th>
+                          <th className="border border-primary/10 px-3 py-2 text-center font-bold text-primary">CA2</th>
+                          <th className="border border-primary/10 px-3 py-2 text-center font-bold text-primary">CA3</th>
+                          <th className="border border-primary/10 px-3 py-2 text-center font-bold text-primary">CA Total /30</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {caRows.map((r) => (
+                          <tr key={r.subject_id}>
+                            <td className="border border-primary/10 px-3 py-2 font-semibold text-primary">{r.subject_name || r.subject_id}</td>
+                            <td className="border border-primary/10 px-3 py-2 text-center">{r.ca1_score ?? "-"}</td>
+                            <td className="border border-primary/10 px-3 py-2 text-center">{r.ca2_score ?? "-"}</td>
+                            <td className="border border-primary/10 px-3 py-2 text-center">{r.ca3_score ?? "-"}</td>
+                            <td className="border border-primary/10 px-3 py-2 text-center font-bold text-primary">{caTotal(r)}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              )}
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                {(termReport?.hifdh_progress || "") && (
+                  <div>
+                    <h3 className="text-[11px] font-bold text-on-surface-variant uppercase tracking-wider mb-1.5">Qur'an Hifdh Progress</h3>
+                    <p className="text-sm text-on-surface leading-relaxed whitespace-pre-line">{termReport?.hifdh_progress}</p>
+                  </div>
+                )}
+                {(termReport?.behavior_remarks || "") && (
+                  <div>
+                    <h3 className="text-[11px] font-bold text-on-surface-variant uppercase tracking-wider mb-1.5">Behavioural Remarks</h3>
+                    <p className="text-sm text-on-surface leading-relaxed whitespace-pre-line">{termReport?.behavior_remarks}</p>
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
         )}
       </div>
     </motion.div>

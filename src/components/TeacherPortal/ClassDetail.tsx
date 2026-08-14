@@ -3,7 +3,7 @@ import { motion, AnimatePresence } from "motion/react";
 import {
   ArrowLeft, UserPlus, Edit2, Trash2, FileText, BookOpen,
   Plus, X, Search, Users, Copy, CheckCircle, AlertCircle,
-  BookText, Save, Move, FileSpreadsheet, Download
+  BookText, Save, Move, FileSpreadsheet, Download, CalendarCheck
 } from "lucide-react";
 import { Class, Student, Subject } from "../../types";
 import jsPDF from "jspdf";
@@ -45,6 +45,13 @@ export default function ClassDetail({ classData, token, userRole, onBack, onStud
   const [editSubject, setEditSubject] = useState<Subject | null>(null);
   const [subjectForm, setSubjectForm] = useState({ name: "", book_name: "", book_author: "" });
   const [savingSubject, setSavingSubject] = useState(false);
+
+  // Attendance state
+  const [showAttendance, setShowAttendance] = useState(false);
+  const [attendanceDate, setAttendanceDate] = useState(new Date().toISOString().split("T")[0]);
+  const [attendanceMap, setAttendanceMap] = useState<Record<string, string>>({});
+  const [attendanceLoading, setAttendanceLoading] = useState(false);
+  const [attendanceSaving, setAttendanceSaving] = useState(false);
 
   useEffect(() => {
     fetchStudents();
@@ -342,6 +349,54 @@ export default function ClassDetail({ classData, token, userRole, onBack, onStud
       .catch(() => {});
   };
 
+  const fetchAttendance = async (date: string) => {
+    setAttendanceLoading(true);
+    try {
+      const res = await fetch(`/api/classes/${classData.id}/attendance?date=${date}`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      const data = await res.json();
+      const map: Record<string, string> = {};
+      for (const rec of data.records || []) map[`${rec.student_id}`] = rec.status;
+      setAttendanceMap(map);
+    } catch (err) {
+      console.error("Failed to fetch attendance:", err);
+    } finally {
+      setAttendanceLoading(false);
+    }
+  };
+
+  const saveAttendance = async () => {
+    setAttendanceSaving(true);
+    try {
+      const entries = students.map((s) => ({
+        studentId: s.id,
+        status: attendanceMap[`${s.id}`] || "present",
+      }));
+      const res = await fetch(`/api/classes/${classData.id}/attendance`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ date: attendanceDate, entries }),
+      });
+      if (res.ok) {
+        setMessage({ type: "success", text: `Attendance saved for ${attendanceDate}` });
+      } else {
+        setMessage({ type: "error", text: "Failed to save attendance" });
+      }
+    } catch (err) {
+      console.error("Attendance save error:", err);
+      setMessage({ type: "error", text: "Failed to save attendance" });
+    }
+    setAttendanceSaving(false);
+    setTimeout(() => setMessage(null), 3000);
+  };
+
+  const toggleAttendance = () => {
+    const next = !showAttendance;
+    setShowAttendance(next);
+    if (next) fetchAttendance(attendanceDate);
+  };
+
   const filteredStudents = students.filter((s) =>
     s.full_name.toLowerCase().includes(searchTerm.toLowerCase())
   );
@@ -369,6 +424,11 @@ export default function ClassDetail({ classData, token, userRole, onBack, onStud
             </div>
           </div>
           <div className="flex items-center gap-2">
+            <button onClick={toggleAttendance}
+              className="flex items-center gap-1.5 text-xs bg-white/10 hover:bg-white/20 px-3 py-2 rounded-lg transition-colors cursor-pointer">
+              <CalendarCheck className="w-4 h-4 text-secondary-fixed" />
+              <span className="hidden sm:inline">{showAttendance ? "Hide Attendance" : "Attendance"}</span>
+            </button>
             <button onClick={() => setShowSubjectsPanel(!showSubjectsPanel)}
               className="flex items-center gap-1.5 text-xs bg-white/10 hover:bg-white/20 px-3 py-2 rounded-lg transition-colors cursor-pointer">
               <BookOpen className="w-4 h-4 text-secondary-fixed" />
@@ -464,6 +524,94 @@ export default function ClassDetail({ classData, token, userRole, onBack, onStud
                       </div>
                     </div>
                   ))}
+                </div>
+              )}
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Inline Attendance Panel */}
+      <AnimatePresence>
+        {showAttendance && (
+          <motion.div
+            initial={{ height: 0, opacity: 0 }}
+            animate={{ height: "auto", opacity: 1 }}
+            exit={{ height: 0, opacity: 0 }}
+            className="border-b border-primary/5 bg-surface-container-low overflow-hidden"
+          >
+            <div className="max-w-7xl mx-auto px-6 py-5">
+              <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
+                <h3 className="font-serif font-bold text-primary text-sm flex items-center gap-2">
+                  <CalendarCheck className="w-4 h-4 text-secondary" />
+                  Attendance
+                </h3>
+                <div className="flex items-center gap-2">
+                  <input
+                    type="date"
+                    value={attendanceDate}
+                    max={new Date().toISOString().split("T")[0]}
+                    onChange={(e) => {
+                      setAttendanceDate(e.target.value);
+                      if (e.target.value) fetchAttendance(e.target.value);
+                    }}
+                    className="bg-white border border-primary/10 px-3 py-1.5 text-xs rounded-lg focus:outline-none focus:border-secondary transition-colors"
+                  />
+                  <button
+                    onClick={() => {
+                      const map: Record<string, string> = {};
+                      students.forEach((s) => { map[`${s.id}`] = "present"; });
+                      setAttendanceMap(map);
+                    }}
+                    className="text-xs text-secondary hover:text-primary font-semibold cursor-pointer px-2 py-1.5"
+                  >
+                    Mark all present
+                  </button>
+                  <button
+                    onClick={saveAttendance}
+                    disabled={attendanceSaving}
+                    className="flex items-center gap-1.5 text-xs bg-primary text-white hover:bg-primary-hover px-4 py-2 rounded-lg transition-colors cursor-pointer disabled:opacity-50 font-semibold"
+                  >
+                    <Save className="w-3.5 h-3.5" />
+                    {attendanceSaving ? "Saving..." : "Save Attendance"}
+                  </button>
+                </div>
+              </div>
+
+              {attendanceLoading ? (
+                <p className="text-xs text-on-surface-variant py-6 text-center">Loading roster…</p>
+              ) : students.length === 0 ? (
+                <p className="text-xs text-on-surface-variant/60 py-4">No students in this class yet</p>
+              ) : (
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
+                  {students.map((s) => {
+                    const status = attendanceMap[`${s.id}`] || "present";
+                    return (
+                      <div key={s.id} className="bg-white border border-primary/5 rounded-lg p-3 flex items-center justify-between gap-2">
+                        <p className="text-xs font-semibold text-primary truncate min-w-0 flex-1">{s.full_name}</p>
+                        <div className="flex items-center gap-1 shrink-0">
+                          {(["present", "late", "absent"] as const).map((st) => (
+                            <button
+                              key={st}
+                              onClick={() => setAttendanceMap((prev) => ({ ...prev, [`${s.id}`]: st }))}
+                              className={`px-2 py-1 text-[10px] font-bold uppercase tracking-wide rounded-md transition-colors cursor-pointer ${
+                                status === st
+                                  ? st === "present"
+                                    ? "bg-green-100 text-green-700"
+                                    : st === "late"
+                                      ? "bg-amber-100 text-amber-700"
+                                      : "bg-red-100 text-red-700"
+                                  : "bg-surface text-on-surface-variant/50 hover:bg-surface-container-high"
+                              }`}
+                              title={st}
+                            >
+                              {st === "present" ? "P" : st === "late" ? "L" : "A"}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                    );
+                  })}
                 </div>
               )}
             </div>

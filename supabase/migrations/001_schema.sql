@@ -62,9 +62,38 @@ CREATE TABLE IF NOT EXISTS public.results (
   year TEXT NOT NULL,
   test_score DOUBLE PRECISION CHECK (test_score IS NULL OR (test_score >= 0 AND test_score <= 30)),
   exam_score DOUBLE PRECISION CHECK (exam_score IS NULL OR (exam_score >= 0 AND exam_score <= 70)),
+  ca1_score DOUBLE PRECISION CHECK (ca1_score IS NULL OR (ca1_score >= 0 AND ca1_score <= 10)),
+  ca2_score DOUBLE PRECISION CHECK (ca2_score IS NULL OR (ca2_score >= 0 AND ca2_score <= 10)),
+  ca3_score DOUBLE PRECISION CHECK (ca3_score IS NULL OR (ca3_score >= 0 AND ca3_score <= 10)),
   total_score DOUBLE PRECISION GENERATED ALWAYS AS (COALESCE(test_score, 0) + COALESCE(exam_score, 0)) STORED,
   remarks TEXT,
   created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- 5b. Attendance table
+CREATE TABLE IF NOT EXISTS public.attendance (
+  id SERIAL PRIMARY KEY,
+  class_id INTEGER NOT NULL REFERENCES public.classes(id) ON DELETE CASCADE,
+  student_id INTEGER NOT NULL REFERENCES public.students(id) ON DELETE CASCADE,
+  session_date DATE NOT NULL,
+  status TEXT NOT NULL DEFAULT 'present' CHECK (status IN ('present', 'absent', 'late')),
+  marked_by INTEGER REFERENCES public.users(id) ON DELETE SET NULL,
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  UNIQUE(student_id, session_date)
+);
+
+-- 5c. Student term reports (Hifdh progress + behaviour remarks)
+CREATE TABLE IF NOT EXISTS public.student_term_reports (
+  id SERIAL PRIMARY KEY,
+  student_id INTEGER NOT NULL REFERENCES public.students(id) ON DELETE CASCADE,
+  class_id INTEGER NOT NULL REFERENCES public.classes(id) ON DELETE CASCADE,
+  term INTEGER NOT NULL CHECK (term IN (1, 2, 3)),
+  year TEXT NOT NULL,
+  hifdh_progress TEXT,
+  behavior_remarks TEXT,
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  updated_at TIMESTAMPTZ DEFAULT NOW(),
+  UNIQUE(student_id, term, year)
 );
 
 -- 6. Sessions table

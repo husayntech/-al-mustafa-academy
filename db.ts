@@ -112,8 +112,14 @@ export async function initDatabase(): Promise<any> {
     }
     if (tablesExist) {
       // Fast path — schema already present. Only ensure seed data (the seed's
-      // own count check short-circuits when classes already exist). This keeps
-      // cold starts to ~2 round-trips instead of a dozen slow ones.
+      // own count check short-circuits when classes already exist) and apply
+      // targeted table upgrades. This keeps cold starts to a few round-trips
+      // instead of a dozen slow ones.
+      try {
+        await withStartupTimeout(ensureTableUpgrades(), 15_000, "Schema upgrade");
+      } catch (err: any) {
+        console.warn("⚠️  Schema upgrade failed/timed out (continuing):", err?.message || err);
+      }
       try {
         await withStartupTimeout(seedPostgresIfEmpty(), 30_000, "Seed step");
       } catch (err: any) {
@@ -229,9 +235,34 @@ export const POSTGRES_SCHEMA_SQL = `
       year TEXT NOT NULL,
       test_score DOUBLE PRECISION CHECK (test_score IS NULL OR (test_score >= 0 AND test_score <= 30)),
       exam_score DOUBLE PRECISION CHECK (exam_score IS NULL OR (exam_score >= 0 AND exam_score <= 70)),
+      ca1_score DOUBLE PRECISION CHECK (ca1_score IS NULL OR (ca1_score >= 0 AND ca1_score <= 10)),
+      ca2_score DOUBLE PRECISION CHECK (ca2_score IS NULL OR (ca2_score >= 0 AND ca2_score <= 10)),
+      ca3_score DOUBLE PRECISION CHECK (ca3_score IS NULL OR (ca3_score >= 0 AND ca3_score <= 10)),
       total_score DOUBLE PRECISION GENERATED ALWAYS AS (COALESCE(test_score, 0) + COALESCE(exam_score, 0)) STORED,
       remarks TEXT,
       created_at TIMESTAMPTZ DEFAULT NOW()
+    );
+    CREATE TABLE IF NOT EXISTS public.attendance (
+      id SERIAL PRIMARY KEY,
+      class_id INTEGER NOT NULL REFERENCES public.classes(id) ON DELETE CASCADE,
+      student_id INTEGER NOT NULL REFERENCES public.students(id) ON DELETE CASCADE,
+      session_date DATE NOT NULL,
+      status TEXT NOT NULL DEFAULT 'present' CHECK (status IN ('present', 'absent', 'late')),
+      marked_by INTEGER REFERENCES public.users(id) ON DELETE SET NULL,
+      created_at TIMESTAMPTZ DEFAULT NOW(),
+      UNIQUE(student_id, session_date)
+    );
+    CREATE TABLE IF NOT EXISTS public.student_term_reports (
+      id SERIAL PRIMARY KEY,
+      student_id INTEGER NOT NULL REFERENCES public.students(id) ON DELETE CASCADE,
+      class_id INTEGER NOT NULL REFERENCES public.classes(id) ON DELETE CASCADE,
+      term INTEGER NOT NULL CHECK (term IN (1, 2, 3)),
+      year TEXT NOT NULL,
+      hifdh_progress TEXT,
+      behavior_remarks TEXT,
+      created_at TIMESTAMPTZ DEFAULT NOW(),
+      updated_at TIMESTAMPTZ DEFAULT NOW(),
+      UNIQUE(student_id, term, year)
     );
     CREATE TABLE IF NOT EXISTS public.sessions (
       id SERIAL PRIMARY KEY,
@@ -266,6 +297,60 @@ export const POSTGRES_SCHEMA_SQL = `
       config_value TEXT NOT NULL DEFAULT ''
     );
 `;
+
+// Targeted upgrades applied even when the core schema fast-path is taken (existing
+// databases skip ensurePostgresSchema). Each statement is idempotent and cheap, so
+// running them on every cold start is safe — the attendance check short-circuits.
+const POSTGRES_UPGRADE_SQL = `
+  CREATE TABLE IF NOT EXISTS public.attendance (
+    id SERIAL PRIMARY KEY,
+    class_id INTEGER NOT NULL REFERENCES public.classes(id) ON DELETE CASCADE,
+    student_id INTEGER NOT NULL REFERENCES public.students(id) ON DELETE CASCADE,
+    session_date DATE NOT NULL,
+    status TEXT NOT NULL DEFAULT 'present' CHECK (status IN ('present', 'absent', 'late')),
+    marked_by INTEGER REFERENCES public.users(id) ON DELETE SET NULL,
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    UNIQUE(student_id, session_date)
+  );
+  CREATE TABLE IF NOT EXISTS public.student_term_reports (
+    id SERIAL PRIMARY KEY,
+    student_id INTEGER NOT NULL REFERENCES public.students(id) ON DELETE CASCADE,
+    class_id INTEGER NOT NULL REFERENCES public.classes(id) ON DELETE CASCADE,
+    term INTEGER NOT NULL CHECK (term IN (1, 2, 3)),
+    year TEXT NOT NULL,
+    hifdh_progress TEXT,
+    behavior_remarks TEXT,
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    updated_at TIMESTAMPTZ DEFAULT NOW(),
+    UNIQUE(student_id, term, year)
+  );
+  ALTER TABLE public.results ADD COLUMN IF NOT EXISTS ca1_score DOUBLE PRECISION;
+  ALTER TABLE public.results ADD COLUMN IF NOT EXISTS ca2_score DOUBLE PRECISION;
+  ALTER TABLE public.results ADD COLUMN IF NOT EXISTS ca3_score DOUBLE PRECISION;
+`;
+
+async function ensureTableUpgrades() {
+  if (!sql) return;
+  try {
+    const rows = await sql.unsafe(
+      `SELECT to_regclass('public.attendance') IS NOT NULL AS has_attendance`
+    );
+    if (rows[0]?.has_attendance) return;
+    const statements = POSTGRES_UPGRADE_SQL
+      .split(";")
+      .map((s) => s.trim())
+      .filter((s) => s && s.length > 0);
+    for (const stmt of statements) {
+      try {
+        await sql.unsafe(stmt);
+      } catch (err: any) {
+        console.warn("⚠️  Schema upgrade statement skipped:", err?.message || err);
+      }
+    }
+  } catch (err: any) {
+    console.warn("⚠️  Schema upgrade check skipped:", err?.message || err);
+  }
+}
 
 async function ensurePostgresSchema() {
   if (!sql) return;
@@ -605,9 +690,40 @@ function ensureSchema(database: SqlJsDatabase) {
       year TEXT NOT NULL,
       test_score REAL CHECK (test_score IS NULL OR (test_score >= 0 AND test_score <= 30)),
       exam_score REAL CHECK (exam_score IS NULL OR (exam_score >= 0 AND exam_score <= 70)),
+      ca1_score REAL CHECK (ca1_score IS NULL OR (ca1_score >= 0 AND ca1_score <= 10)),
+      ca2_score REAL CHECK (ca2_score IS NULL OR (ca2_score >= 0 AND ca2_score <= 10)),
+      ca3_score REAL CHECK (ca3_score IS NULL OR (ca3_score >= 0 AND ca3_score <= 10)),
       total_score REAL GENERATED ALWAYS AS (COALESCE(test_score, 0) + COALESCE(exam_score, 0)) STORED,
       remarks TEXT,
       created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+    )
+  `);
+
+  database.run(`
+    CREATE TABLE IF NOT EXISTS attendance (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      class_id INTEGER NOT NULL REFERENCES classes(id) ON DELETE CASCADE,
+      student_id INTEGER NOT NULL REFERENCES students(id) ON DELETE CASCADE,
+      session_date DATE NOT NULL,
+      status TEXT NOT NULL DEFAULT 'present' CHECK (status IN ('present', 'absent', 'late')),
+      marked_by INTEGER REFERENCES users(id) ON DELETE SET NULL,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      UNIQUE(student_id, session_date)
+    )
+  `);
+
+  database.run(`
+    CREATE TABLE IF NOT EXISTS student_term_reports (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      student_id INTEGER NOT NULL REFERENCES students(id) ON DELETE CASCADE,
+      class_id INTEGER NOT NULL REFERENCES classes(id) ON DELETE CASCADE,
+      term INTEGER NOT NULL CHECK (term IN (1, 2, 3)),
+      year TEXT NOT NULL,
+      hifdh_progress TEXT,
+      behavior_remarks TEXT,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      UNIQUE(student_id, term, year)
     )
   `);
 
@@ -677,6 +793,9 @@ function ensureSchema(database: SqlJsDatabase) {
   try { database.run(`ALTER TABLE users ADD COLUMN phone TEXT`); } catch {}
   try { database.run(`ALTER TABLE users ADD COLUMN email TEXT`); } catch {}
   try { database.run(`ALTER TABLE users ADD COLUMN address TEXT`); } catch {}
+  try { database.run(`ALTER TABLE results ADD COLUMN ca1_score REAL`); } catch {}
+  try { database.run(`ALTER TABLE results ADD COLUMN ca2_score REAL`); } catch {}
+  try { database.run(`ALTER TABLE results ADD COLUMN ca3_score REAL`); } catch {}
 
   saveDatabase();
 }
