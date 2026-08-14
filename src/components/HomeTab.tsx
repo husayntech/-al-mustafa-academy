@@ -88,7 +88,7 @@ export default function HomeTab({ onScreenChange }: HomeTabProps) {
           </div>
         );
         return (
-          <div className="w-full bg-secondary-fixed/10 border-b border-secondary/10 overflow-hidden">
+          <div className="w-full bg-secondary-fixed/10 overflow-hidden">
             <div className="marquee-track py-2.5">
               {renderSet(false)}
               {renderSet(true)}
