@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { motion, AnimatePresence } from "motion/react";
-import { Menu, Home, GraduationCap, BookOpen, ChevronDown, Lock, UserRound, ShieldCheck } from "lucide-react";
+import { Menu, Home, GraduationCap, BookOpen, CalendarDays, HelpCircle, Images, ChevronDown, Lock, UserRound, ShieldCheck } from "lucide-react";
 import { ScreenId } from "../types";
 import { useSiteContent, normalizeImageUrl } from "../lib/siteContent";
 import EditableImage from "./EditableImage";
@@ -30,7 +30,7 @@ export default function Header({
   // Scroll-spy: on the single-page landing layout, highlight the nav link of
   // whichever content section is currently in view.
   useEffect(() => {
-    const ids = ["home-section", "admissions-section", "madrasah-section"];
+    const ids = ["home-section", "welcome-section", "admissions-section", "calendar-section", "madrasah-section", "faq-section", "gallery-section"];
     const observer = new IntersectionObserver(
       (entries) => {
         for (const entry of entries) {
@@ -46,10 +46,13 @@ export default function Header({
     return () => observer.disconnect();
   }, []);
 
-  const navLinks: { id: ScreenId; label: string; labelKey: string; icon: any }[] = [
-    { id: "home", label: siteContent.nav_home_label || "Home", labelKey: "nav_home_label", icon: Home },
-    { id: "admissions", label: siteContent.nav_admissions_label || "Admissions", labelKey: "nav_admissions_label", icon: GraduationCap },
-    { id: "curriculum", label: siteContent.nav_curriculum_label || "Madrasah Activities", labelKey: "nav_curriculum_label", icon: BookOpen },
+  const navLinks: { id: ScreenId; label: string; labelKey: string; icon: any; scrollToId: string }[] = [
+    { id: "home", label: siteContent.nav_home_label || "Home", labelKey: "nav_home_label", icon: Home, scrollToId: "home-section" },
+    { id: "admissions", label: siteContent.nav_admissions_label || "Admissions", labelKey: "nav_admissions_label", icon: GraduationCap, scrollToId: "admissions-section" },
+    { id: "calendar", label: siteContent.nav_calendar_label || "Academic Calendar", labelKey: "nav_calendar_label", icon: CalendarDays, scrollToId: "calendar-section" },
+    { id: "curriculum", label: siteContent.nav_curriculum_label || "Madrasah Activities", labelKey: "nav_curriculum_label", icon: BookOpen, scrollToId: "madrasah-section" },
+    { id: "faq", label: siteContent.nav_faq_label || "FAQs", labelKey: "nav_faq_label", icon: HelpCircle, scrollToId: "faq-section" },
+    { id: "gallery", label: siteContent.nav_gallery_label || "Gallery", labelKey: "nav_gallery_label", icon: Images, scrollToId: "gallery-section" },
   ];
 
   const portalLinks: { label: string; icon: any; onClick?: () => void }[] = [
@@ -58,15 +61,12 @@ export default function Header({
     { label: siteContent.header_admin_portal_label || "Admin Portal", icon: ShieldCheck, onClick: onAdminPortal },
   ];
 
-  // Maps a nav link to the DOM section id it points at (used for scroll-spy + active state)
-  const sectionFor = (link: { id: string; scrollToId?: string }) =>
-    link.scrollToId || (link.id === "home" ? "home-section" : link.id === "admissions" ? "admissions-section" : "madrasah-section");
-
   const handleLinkClick = (id: ScreenId) => {
+    const link = navLinks.find((l) => l.id === id);
     setDrawerOpen(false);
     setPortalsOpen(false);
     onScreenChange(id);
-    setActiveSection(id === "home" ? "home-section" : id === "admissions" ? "admissions-section" : "madrasah-section");
+    if (link) setActiveSection(link.scrollToId);
   };
 
   const handlePortalClick = (fn?: () => void) => {
@@ -84,7 +84,7 @@ export default function Header({
             <button
               id="menu-toggle"
               onClick={() => setDrawerOpen(true)}
-              className="p-1.5 md:hidden text-primary hover:bg-surface-container rounded-md transition-colors cursor-pointer"
+              className="p-1.5 lg:hidden text-primary hover:bg-surface-container rounded-md transition-colors cursor-pointer"
               aria-label="Toggle Navigation Drawer"
             >
               <Menu className="w-6 h-6" />
@@ -118,11 +118,9 @@ export default function Header({
           </div>
 
           {/* Desktop Navigation */}
-          <nav className="hidden md:flex items-center gap-8 h-full">
+          <nav className="hidden lg:flex items-center gap-6 xl:gap-8 h-full">
             {navLinks.map((link) => {
-              const isActive =
-                activeSection ===
-                (link.id === "home" ? "home-section" : link.id === "admissions" ? "admissions-section" : "madrasah-section");
+              const isActive = activeSection === link.scrollToId;
               return (
                 <button
                   key={link.id}
@@ -221,7 +219,7 @@ export default function Header({
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
               onClick={() => setDrawerOpen(false)}
-              className="fixed inset-0 bg-black/50 z-50 backdrop-blur-xs cursor-pointer md:hidden"
+              className="fixed inset-0 bg-black/50 z-50 backdrop-blur-xs cursor-pointer lg:hidden"
             />
 
             {/* Side Drawer Content */}
@@ -231,7 +229,7 @@ export default function Header({
               animate={{ x: 0 }}
               exit={{ x: "-100%" }}
               transition={{ type: "spring", damping: 30, stiffness: 250 }}
-              className="fixed left-0 top-0 h-full w-80 max-w-[85vw] z-[60] bg-surface flex flex-col py-6 px-1 shadow-2xl md:hidden border-r border-primary/10"
+              className="fixed left-0 top-0 h-full w-80 max-w-[85vw] z-[60] bg-surface flex flex-col py-6 px-1 shadow-2xl lg:hidden border-r border-primary/10"
             >
               <div className="px-5 mb-8 flex items-center gap-3">
                 <EditableImage
@@ -268,9 +266,7 @@ export default function Header({
 
               <nav className="flex flex-col gap-1 px-2">
                 {navLinks.map((link) => {
-                  const isActive =
-                    activeSection ===
-                    (link.id === "home" ? "home-section" : link.id === "admissions" ? "admissions-section" : "madrasah-section");
+                  const isActive = activeSection === link.scrollToId;
                   const IconComponent = link.icon;
                   return (
                     <button

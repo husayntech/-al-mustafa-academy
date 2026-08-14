@@ -8,10 +8,15 @@ import { useEditMode } from "./lib/editMode";
 import Header from "./components/Header";
 import Footer from "./components/Footer";
 import HomeTab from "./components/HomeTab";
+import WelcomeSection from "./components/WelcomeSection";
 import AdmissionsTab from "./components/AdmissionsTab";
+import CalendarSection from "./components/CalendarSection";
 import MadrasahActivitiesTab from "./components/MadrasahActivitiesTab";
+import FAQSection from "./components/FAQSection";
+import GallerySection from "./components/GallerySection";
 
 import Chatbot from "./components/Chatbot";
+import WhatsAppWidget from "./components/WhatsAppWidget";
 import ContentInspector from "./components/ContentInspector";
 import SpacingGuide from "./components/SpacingGuide";
 import LoginPage from "./components/TeacherPortal/LoginPage";
@@ -100,16 +105,22 @@ export default function App() {
     academicYear: string;
   } | null>(null);
 
-  // On the landing page, all content sections (Home, Admissions, Madrasah
-  // Activities) are rendered together in one long page. Nav links scroll to
-  // the matching section instead of switching screens. Portal screens still
-  // use currentScreen as before.
+  // On the landing page, all content sections (Home, Welcome, Admissions,
+  // Calendar, Madrasah, FAQs, Gallery) are rendered together in one long page.
+  // Nav links scroll to the matching section instead of switching screens.
+  // Portal screens still use currentScreen as before.
+  const SECTION_IDS: Record<string, string> = {
+    home: "home-section",
+    admissions: "admissions-section",
+    curriculum: "madrasah-section",
+    calendar: "calendar-section",
+    faq: "faq-section",
+    gallery: "gallery-section",
+  };
   const handleScreenChange = (screenId: ScreenId) => {
-    if (screenId === "admissions" || screenId === "curriculum" || screenId === "home") {
+    if (screenId in SECTION_IDS) {
       setCurrentScreen("home");
-      const el = document.getElementById(
-        screenId === "admissions" ? "admissions-section" : screenId === "curriculum" ? "madrasah-section" : "home-section"
-      );
+      const el = document.getElementById(SECTION_IDS[screenId]);
       if (el) {
         el.scrollIntoView({ behavior: "smooth", block: "start" });
       } else {
@@ -347,8 +358,12 @@ export default function App() {
       {/* Main Interactive Screen Content — all public sections on one page */}
       <main className="flex-1 pt-16 flex flex-col">
         <HomeTab onScreenChange={handleScreenChange} />
+        <WelcomeSection />
         <AdmissionsTab />
+        <CalendarSection />
         <MadrasahActivitiesTab />
+        <FAQSection />
+        <GallerySection />
       </main>
 
       {/* Universal Footer */}
@@ -361,6 +376,7 @@ export default function App() {
 
       {/* Floating Overlays (positioned fixed, outside layout flow) */}
       <Chatbot />
+      <WhatsAppWidget />
       {/* Style Inspector + Style Editor — only when Edit Mode is enabled (admin only) */}
       {editModeOn && (user?.role === "admin" || user?.is_admin) && (
         <>

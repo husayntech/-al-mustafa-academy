@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import { motion, AnimatePresence } from "motion/react";
-import { FileText, ClipboardList, Users, UserCheck, Star, Sparkles, CreditCard, Download, Mail, Phone, ArrowDown } from "lucide-react";
+import { FileText, ClipboardList, Users, UserCheck, Star, Sparkles, CreditCard, Download, Mail, Phone, ArrowDown, Wallet, MessageCircle } from "lucide-react";
 import { useSiteContent, normalizeImageUrl } from "../lib/siteContent";
 import EditableImage from "./EditableImage";
 import EditableText from "./EditableText";
@@ -41,6 +41,18 @@ export default function AdmissionsTab() {
     if (applyFormSection) {
       applyFormSection.scrollIntoView({ behavior: "smooth" });
     }
+  };
+
+  // Payment confirmation: opens WhatsApp pre-filled with the fee + account details
+  const handlePaymentConfirm = () => {
+    const whatsappNumber = siteContent.admissions_whatsapp_number || "2348037525585";
+    const bankName = siteContent.payment_bank_name || "Palmpay";
+    const accountNumber = siteContent.payment_account_number || "8037525855";
+    const accountName = siteContent.payment_account_name || "Ibrahim Olamilekan Mustapha";
+    const message = encodeURIComponent(
+      `Assalamu Alaikum,\n\nI have just made a payment to Al Mustafa Academy.\n\n*Fee Type:* (Application / Enrollment / Tuition)\n*Amount Paid:* ₦\n*Paid To:* ${bankName} (${accountNumber}) — ${accountName}\n*Payer Name:* \n*Student Name:* \n\nI have attached my transfer receipt. Jazakumullahu Khayran.`
+    );
+    window.open(`https://wa.me/${whatsappNumber}?text=${message}`, "_blank");
   };
 
   const handleFormSubmit = (e: React.FormEvent) => {
@@ -268,6 +280,57 @@ export default function AdmissionsTab() {
             >
               {siteContent.admissions_fee_download_text || "Download Full Fee Schedule"}
               <Download className="w-4 h-4 ml-2" />
+            </button>
+          </div>
+
+          {/* Pay fees — transfer to school account */}
+          <div className="bg-white p-8 border border-secondary/20 rounded-xl relative overflow-hidden shadow-xs hover:shadow-sm transition-shadow">
+            <div className="absolute top-0 right-0 p-8 opacity-5 select-none pointer-events-none text-primary">
+              <Wallet className="w-32 h-32" />
+            </div>
+            <h3 className="font-serif text-xl sm:text-2xl text-primary font-bold mb-4">
+              <EditableText contentKey="payment_heading" value={siteContent.payment_heading || ""} fallback="Pay Application &amp; School Fees" label="Payment: Section Heading">
+                <span dangerouslySetInnerHTML={renderHtml(siteContent.payment_heading, "Pay Application &amp; School Fees")} />
+              </EditableText>
+            </h3>
+            <div
+              className="rich-html text-sm text-on-surface-variant"
+              dangerouslySetInnerHTML={renderHtml(siteContent.payment_instructions, "")}
+            />
+
+            <div className="mt-5 rounded-xl border border-primary/10 bg-surface p-5 space-y-3">
+              <div className="flex items-center justify-between gap-4 text-sm">
+                <span className="text-on-surface-variant">Bank / Wallet</span>
+                <span className="font-bold text-primary">
+                  <EditableText contentKey="payment_bank_name" value={siteContent.payment_bank_name || ""} fallback="Palmpay" label="Payment: Bank / Wallet Name" plain>
+                    <span>{siteContent.payment_bank_name || "Palmpay"}</span>
+                  </EditableText>
+                </span>
+              </div>
+              <div className="flex items-center justify-between gap-4 text-sm">
+                <span className="text-on-surface-variant">Account Number</span>
+                <span className="font-bold text-primary tracking-wider">
+                  <EditableText contentKey="payment_account_number" value={siteContent.payment_account_number || ""} fallback="8037525855" label="Payment: Account Number" plain>
+                    <span>{siteContent.payment_account_number || "8037525855"}</span>
+                  </EditableText>
+                </span>
+              </div>
+              <div className="flex items-center justify-between gap-4 text-sm">
+                <span className="text-on-surface-variant">Account Name</span>
+                <span className="font-bold text-primary text-right">
+                  <EditableText contentKey="payment_account_name" value={siteContent.payment_account_name || ""} fallback="Ibrahim Olamilekan Mustapha" label="Payment: Account Name" plain>
+                    <span>{siteContent.payment_account_name || "Ibrahim Olamilekan Mustapha"}</span>
+                  </EditableText>
+                </span>
+              </div>
+            </div>
+
+            <button
+              onClick={handlePaymentConfirm}
+              className="mt-6 w-full flex items-center justify-center gap-2 bg-primary hover:bg-primary-hover text-white text-sm font-bold px-6 py-3.5 rounded-xl shadow-lg shadow-primary/20 hover:scale-[1.01] active:scale-[0.99] transition-all cursor-pointer"
+            >
+              <MessageCircle className="w-4 h-4" />
+              {siteContent.payment_confirm_text || "I Have Paid — Confirm via WhatsApp"}
             </button>
           </div>
         </div>

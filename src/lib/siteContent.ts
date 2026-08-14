@@ -315,6 +315,77 @@ export const CONTENT_FIELDS: ContentField[] = [
   { key: "madrasah_extra_heading", label: "Extra Lessons Heading", type: "html", group: "Madrasah Activities Page" },
   { key: "madrasah_extra_text", label: "Extra Lessons Text", type: "html", group: "Madrasah Activities Page" },
   { key: "madrasah_extra_image", label: "Extra Lessons Image", type: "image", group: "Madrasah Activities Page" },
+
+  // ==================== WELCOME MESSAGE (Director / Principal) ====================
+  { key: "welcome_heading", label: "Welcome: Section Heading", type: "html", group: "Welcome Message" },
+  { key: "welcome_bismillah", label: "Welcome: Bismillah", type: "text", group: "Welcome Message" },
+  { key: "welcome_salutation", label: "Welcome: Salutation", type: "text", group: "Welcome Message" },
+  { key: "welcome_body", label: "Welcome: Message Body", type: "html", group: "Welcome Message" },
+  { key: "welcome_name", label: "Welcome: Signatory Name", type: "text", group: "Welcome Message" },
+  { key: "welcome_title", label: "Welcome: Signatory Title", type: "text", group: "Welcome Message" },
+  { key: "welcome_photo", label: "Welcome: Director Photo", type: "image", group: "Welcome Message" },
+
+  // ==================== ACADEMIC CALENDAR ====================
+  { key: "calendar_heading", label: "Calendar: Section Heading", type: "html", group: "Academic Calendar" },
+  { key: "calendar_subtitle", label: "Calendar: Subtitle (Session)", type: "text", group: "Academic Calendar" },
+  { key: "calendar_term_label", label: "Calendar: Term Label", type: "text", group: "Academic Calendar" },
+  { key: "calendar_term_dates", label: "Calendar: Term Dates", type: "text", group: "Academic Calendar" },
+  { key: "calendar_event_1_title", label: "Calendar: Event 1 Title", type: "text", group: "Academic Calendar" },
+  { key: "calendar_event_1_date", label: "Calendar: Event 1 Date", type: "text", group: "Academic Calendar" },
+  { key: "calendar_event_2_title", label: "Calendar: Event 2 Title", type: "text", group: "Academic Calendar" },
+  { key: "calendar_event_2_date", label: "Calendar: Event 2 Date", type: "text", group: "Academic Calendar" },
+  { key: "calendar_event_3_title", label: "Calendar: Event 3 Title", type: "text", group: "Academic Calendar" },
+  { key: "calendar_event_3_date", label: "Calendar: Event 3 Date", type: "text", group: "Academic Calendar" },
+  { key: "calendar_note", label: "Calendar: Note", type: "html", group: "Academic Calendar" },
+
+  // ==================== FAQS ====================
+  { key: "faq_heading", label: "FAQ: Section Heading", type: "html", group: "FAQs" },
+  { key: "faq_subtitle", label: "FAQ: Subtitle", type: "html", group: "FAQs" },
+  { key: "faq_q1", label: "FAQ: Question 1", type: "text", group: "FAQs" },
+  { key: "faq_a1", label: "FAQ: Answer 1", type: "html", group: "FAQs" },
+  { key: "faq_q2", label: "FAQ: Question 2", type: "text", group: "FAQs" },
+  { key: "faq_a2", label: "FAQ: Answer 2", type: "html", group: "FAQs" },
+  { key: "faq_q3", label: "FAQ: Question 3", type: "text", group: "FAQs" },
+  { key: "faq_a3", label: "FAQ: Answer 3", type: "html", group: "FAQs" },
+  { key: "faq_q4", label: "FAQ: Question 4", type: "text", group: "FAQs" },
+  { key: "faq_a4", label: "FAQ: Answer 4", type: "html", group: "FAQs" },
+  { key: "faq_q5", label: "FAQ: Question 5", type: "text", group: "FAQs" },
+  { key: "faq_a5", label: "FAQ: Answer 5", type: "html", group: "FAQs" },
+  { key: "faq_q6", label: "FAQ: Question 6", type: "text", group: "FAQs" },
+  { key: "faq_a6", label: "FAQ: Answer 6", type: "html", group: "FAQs" },
+
+  // ==================== GALLERY ====================
+  { key: "gallery_heading", label: "Gallery: Section Heading", type: "html", group: "Gallery" },
+  { key: "gallery_subtitle", label: "Gallery: Subtitle", type: "html", group: "Gallery" },
+  { key: "gallery_image_1", label: "Gallery: Image 1", type: "image", group: "Gallery" },
+  { key: "gallery_caption_1", label: "Gallery: Caption 1", type: "text", group: "Gallery" },
+  { key: "gallery_image_2", label: "Gallery: Image 2", type: "image", group: "Gallery" },
+  { key: "gallery_caption_2", label: "Gallery: Caption 2", type: "text", group: "Gallery" },
+  { key: "gallery_image_3", label: "Gallery: Image 3", type: "image", group: "Gallery" },
+  { key: "gallery_caption_3", label: "Gallery: Caption 3", type: "text", group: "Gallery" },
+  { key: "gallery_image_4", label: "Gallery: Image 4", type: "image", group: "Gallery" },
+  { key: "gallery_caption_4", label: "Gallery: Caption 4", type: "text", group: "Gallery" },
+  { key: "gallery_image_5", label: "Gallery: Image 5", type: "image", group: "Gallery" },
+  { key: "gallery_caption_5", label: "Gallery: Caption 5", type: "text", group: "Gallery" },
+  { key: "gallery_image_6", label: "Gallery: Image 6", type: "image", group: "Gallery" },
+  { key: "gallery_caption_6", label: "Gallery: Caption 6", type: "text", group: "Gallery" },
+
+  // ==================== WHATSAPP WIDGET ====================
+  { key: "whatsapp_widget_label", label: "WhatsApp Widget: Label", type: "text", group: "WhatsApp Widget" },
+  { key: "whatsapp_widget_message", label: "WhatsApp Widget: Pre-filled Message", type: "textarea", group: "WhatsApp Widget" },
+
+  // ==================== FEES & PAYMENT ====================
+  { key: "payment_heading", label: "Payment: Section Heading", type: "html", group: "Fees & Payment" },
+  { key: "payment_bank_name", label: "Payment: Bank / Wallet Name", type: "text", group: "Fees & Payment" },
+  { key: "payment_account_number", label: "Payment: Account Number", type: "text", group: "Fees & Payment" },
+  { key: "payment_account_name", label: "Payment: Account Name", type: "text", group: "Fees & Payment" },
+  { key: "payment_instructions", label: "Payment: Instructions", type: "html", group: "Fees & Payment" },
+  { key: "payment_confirm_text", label: "Payment: Confirm Button Text", type: "text", group: "Fees & Payment" },
+
+  // ==================== NAVIGATION ====================
+  { key: "nav_calendar_label", label: "Navigation: Academic Calendar Label", type: "text", group: "Header & Footer" },
+  { key: "nav_faq_label", label: "Navigation: FAQs Label", type: "text", group: "Header & Footer" },
+  { key: "nav_gallery_label", label: "Navigation: Gallery Label", type: "text", group: "Header & Footer" },
 ];
 
 /** Default values for every field (used as fallbacks and for "Reset Defaults"). */
@@ -572,6 +643,86 @@ export const CONTENT_DEFAULTS: Record<string, string> = {
   madrasah_extra_text:
     "Learning does not end when the main classes do. From 2:00 PM to 3:30 PM, some students stay behind for extra lessons and other activities — receiving the additional support and enrichment they need to truly excel.",
   madrasah_extra_image: "https://lh3.googleusercontent.com/aida-public/AB6AXuCxfijj9ohXFXMZVZUkqyTBQB3ImkiFqpltJjydzSOwCdWxMCOpjETAeJ0I3Dl2QNAr5nzkU5DrMx2jcG6Ji1g7P0jHDnuRCbciGMcW0jtmiPJmt1qfxOrt0m1FTadmggzX59fBDY9T0NuO2SM39if0PR_1nPijlwHzQvnfZ0LWAPdn-c_YaEuaHJQZUhSfWOw-kIYId9vej-znTy6og9AsZyoDgUQoDkuYqH3CTqZ1bBs7nZISweD_oHu-n1bEABjP3fhwUv1R4sM",
+
+  // ---- Welcome message (Director / Principal) ----
+  welcome_heading: "Welcome Message from the Director / Principal",
+  welcome_bismillah: "بِسْمِ اللهِ الرَّحْمٰنِ الرَّحِيْمِ",
+  welcome_salutation: "Assalāmu ‘Alaykum Wa Raḥmatullāhi Wa Barakātuh,",
+  welcome_body:
+    "It is my utmost pleasure and privilege to welcome you to <strong>Al Mustafa Academy</strong>, a sanctuary of knowledge located in the heart of Ilorin, Kwara State. Since our establishment in 2013, our steadfast commitment has been to nurture a generation of God-conscious, academically proficient, and morally upright leaders who exemplify the teachings of the Qur’an and Sunnah in their daily lives.<br/><br/>At Al Mustafa Academy, we believe that true education reaches far beyond textbook knowledge—it must shape character, refine manners (<em>Adab</em>), and inspire purposeful living. By seamlessly balancing rigorous academic standards with comprehensive Qur’an memorization (<em>Hifdh</em>), <em>Tajwīd</em>, Arabic studies, and Islamic etiquette (<em>Akhlaaq</em>), we prepare our students to excel in both contemporary society and the Hereafter.<br/><br/>Whether you are a prospective parent seeking a nurturing environment for your child’s spiritual and intellectual growth, or a returning family continuing this noble journey with us, we invite you to explore our vibrant community. Together, let us build a strong foundation for our children’s future under the guidance of divine wisdom.",
+  welcome_name: "Dr. Ibrahim Mustapha",
+  welcome_title: "Director of Studies, Al Mustafa Academy",
+  welcome_photo: "",
+
+  // ---- Academic calendar ----
+  calendar_heading: "MADRASAH ACADEMIC CALENDAR",
+  calendar_subtitle: "1448 AH (2026/2027 Session)",
+  calendar_term_label: "1st Term",
+  calendar_term_dates: "11th July – 25th October, 2026",
+  calendar_event_1_title: "Musābaqotu’l-Qur’ān (Qur’an Competition)",
+  calendar_event_1_date: "10th & 11th October, 2026",
+  calendar_event_2_title: "1st Term Examination",
+  calendar_event_2_date: "17th – 25th October, 2026",
+  calendar_event_3_title: "2nd Term Commences",
+  calendar_event_3_date: "To be announced",
+  calendar_note:
+    "All parents are kindly advised to take note of these important dates. Jazākumullāhu Khayran.",
+
+  // ---- FAQs ----
+  faq_heading: "Frequently Asked Questions",
+  faq_subtitle: "Answers to the questions families ask us most.",
+  faq_q1: "What is the balance between Western and Islamic studies?",
+  faq_a1:
+    "Al Mustafa Academy delivers a dual curriculum: a rigorous Western academic programme (English, Mathematics, Sciences, and more) alongside comprehensive Islamic studies — Qur’an memorisation (Hifdh), Tajwīd, Arabic, Fiqh, and Islamic etiquette (Akhlaaq). Students graduate strong in both worlds.",
+  faq_q2: "Do you provide transportation for students?",
+  faq_a2:
+    "Yes — we operate school transportation on select routes within Ilorin. Please contact our admissions office or reach us on WhatsApp for the current routes and pick-up schedule.",
+  faq_q3: "Is there a feeding or meal programme?",
+  faq_a3:
+    "We run a supervised feeding programme that provides nutritious meals during the school day. Details, including menus and fees, are shared with parents each term.",
+  faq_q4: "How can I pay application and school fees?",
+  faq_a4:
+    "Simply transfer the exact amount to the account shown in our Fees section (Palmpay — 8037525855, Ibrahim Olamilekan Mustapha), then tap the confirm button to notify us on WhatsApp with your transfer receipt.",
+  faq_q5: "How do I check my child’s results?",
+  faq_a5:
+    "Parents and students can check termly results through the Student Portal — log in with the student’s surname and password (issued by the school). Report cards are also available as PDF.",
+  faq_q6: "When does the academic year begin?",
+  faq_a6:
+    "Our academic calendar runs by Islamic (Hijri) and civil dates each session — see the Academic Calendar section for term dates, examinations, and important events such as the Qur’an competition.",
+
+  // ---- Gallery ----
+  gallery_heading: "Life at Al Mustafa Academy",
+  gallery_subtitle: "A glimpse into our classrooms, labs, and Madrasah activities.",
+  gallery_image_1: "https://lh3.googleusercontent.com/aida-public/AB6AXuDlagLGnpncRI0maRkiqnopDty3gteLvuai-wV8E-IdFH1qKO6nwv51QlF-8-KFHN43dEpce9QIZPnppXTpWzNIL6yqXqlk8kTx4UpimsnfI_N38_sUyv3pPJYCOlc_vyoTmV9RgI70aU56gYHx_yOBrmTC10bJx7g38caiXAv41rgbYJv25Ao6YVwm32Qo1clmSApOSFqquCbNriHHRKH4cF2kKZf6Wabnxp-_upZu5hsy5bS2Ew3IEoIfDCtYDto892hjQckO1F4",
+  gallery_caption_1: "A day at the Madrasah",
+  gallery_image_2: "https://lh3.googleusercontent.com/aida-public/AB6AXuChYsP3-TYjRTvlweFM8GeXEwaVzYYCRhz46RXIbMMUD7bbshymCw-BkqHA6t5e88ug0R137Un_H3vUu_msIWFac5QPhaFYNsnTmM68KiT8MnQSllR2736Ts5Z4sQLOibCx_oW-6lMNPMW9edXXzBPKMRYrsbijy1e5ltreZb31wPeTSYfO48ALOPQbKqPlKG4PVlP_EHd_-6w5MChTkRQs1QOeKpOVTCuZbyb5PerdlDG8Sq0nYDvNMTARuZCCibRp6loeky-IVh0",
+  gallery_caption_2: "Student address & announcements",
+  gallery_image_3: "https://lh3.googleusercontent.com/aida-public/AB6AXuCxfijj9ohXFXMZVZUkqyTBQB3ImkiFqpltJjydzSOwCdWxMCOpjETAeJ0I3Dl2QNAr5nzkU5DrMx2jcG6Ji1g7P0jHDnuRCbciGMcW0jtmiPJmt1qfxOrt0m1FTadmggzX59fBDY9T0NuO2SM39if0PR_1nPijlwHzQvnfZ0LWAPdn-c_YaEuaHJQZUhSfWOw-kIYId9vej-znTy6og9AsZyoDgUQoDkuYqH3CTqZ1bBs7nZISweD_oHu-n1bEABjP3fhwUv1R4sM",
+  gallery_caption_3: "Extra lessons & activities",
+  gallery_image_4: "",
+  gallery_caption_4: "",
+  gallery_image_5: "",
+  gallery_caption_5: "",
+  gallery_image_6: "",
+  gallery_caption_6: "",
+
+  // ---- WhatsApp widget ----
+  whatsapp_widget_label: "Chat with us on WhatsApp",
+  whatsapp_widget_message: "Assalamu Alaikum! I would like to ask about Al Mustafa Academy.",
+
+  // ---- Fees & payment ----
+  payment_heading: "Pay Application & School Fees",
+  payment_bank_name: "Palmpay",
+  payment_account_number: "8037525855",
+  payment_account_name: "Ibrahim Olamilekan Mustapha",
+  payment_instructions:
+    "Transfer the exact fee amount to the account below using USSD, bank transfer, or the Palmpay app. Then tap the button below to confirm your payment on WhatsApp — kindly attach your transfer receipt.",
+  payment_confirm_text: "I Have Paid — Confirm via WhatsApp",
+
+  // ---- Navigation labels ----
+  nav_calendar_label: "Academic Calendar",
+  nav_faq_label: "FAQs",
+  nav_gallery_label: "Gallery",
 };
 
 /** Maps content keys to the Tailwind v4 CSS custom properties they drive. */

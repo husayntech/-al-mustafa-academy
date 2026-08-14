@@ -1,0 +1,165 @@
+import { motion } from "motion/react";
+import { CalendarDays, BookMarked, Landmark } from "lucide-react";
+import { useSiteContent } from "../lib/siteContent";
+import EditableText from "./EditableText";
+
+interface CalendarEvent {
+  titleKey: string;
+  dateKey: string;
+  title: string;
+  date: string;
+}
+
+/**
+ * Academic Calendar — term dates and key events (exams, Qur'an competition…).
+ * Everything is editable from the admin Content tab; empty events are hidden.
+ */
+export default function CalendarSection() {
+  const siteContent = useSiteContent();
+  const renderHtml = (value: string | undefined, fallback: string) => ({
+    __html: value && value.trim() ? value : fallback,
+  });
+
+  const events: CalendarEvent[] = [
+    {
+      titleKey: "calendar_event_1_title",
+      dateKey: "calendar_event_1_date",
+      title: siteContent.calendar_event_1_title || "",
+      date: siteContent.calendar_event_1_date || "",
+    },
+    {
+      titleKey: "calendar_event_2_title",
+      dateKey: "calendar_event_2_date",
+      title: siteContent.calendar_event_2_title || "",
+      date: siteContent.calendar_event_2_date || "",
+    },
+    {
+      titleKey: "calendar_event_3_title",
+      dateKey: "calendar_event_3_date",
+      title: siteContent.calendar_event_3_title || "",
+      date: siteContent.calendar_event_3_date || "",
+    },
+  ].filter((e) => e.title || e.date);
+
+  return (
+    <motion.section
+      id="calendar-section"
+      initial={{ opacity: 0, y: 40 }}
+      whileInView={{ opacity: 1, y: 0 }}
+      viewport={{ once: true, margin: "-80px" }}
+      transition={{ duration: 0.6 }}
+      className="scroll-mt-16 bg-background py-16 sm:py-20"
+    >
+      <div className="max-w-5xl mx-auto px-6">
+        <div className="text-center mb-10">
+          <h2 className="font-serif text-2xl sm:text-3xl text-primary font-bold tracking-wide">
+            <EditableText
+              contentKey="calendar_heading"
+              value={siteContent.calendar_heading || ""}
+              fallback="MADRASAH ACADEMIC CALENDAR"
+              label="Calendar: Section Heading"
+            >
+              <span dangerouslySetInnerHTML={renderHtml(siteContent.calendar_heading, "MADRASAH ACADEMIC CALENDAR")} />
+            </EditableText>
+          </h2>
+          <p className="text-secondary font-semibold text-xs sm:text-sm uppercase tracking-widest mt-2">
+            <EditableText
+              contentKey="calendar_subtitle"
+              value={siteContent.calendar_subtitle || ""}
+              fallback="1448 AH (2026/2027 Session)"
+              label="Calendar: Subtitle (Session)"
+              plain
+            >
+              <span>{siteContent.calendar_subtitle || "1448 AH (2026/2027 Session)"}</span>
+            </EditableText>
+          </p>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 items-stretch">
+          {/* Term card — highlighted */}
+          <div className="bg-primary text-white rounded-2xl p-7 flex flex-col justify-center shadow-lg relative overflow-hidden">
+            <div className="absolute -bottom-6 -right-6 opacity-10">
+              <Landmark className="w-40 h-40" />
+            </div>
+            <p className="text-[10px] font-bold uppercase tracking-widest text-secondary-fixed mb-2">
+              <EditableText
+                contentKey="calendar_term_label"
+                value={siteContent.calendar_term_label || ""}
+                fallback="1st Term"
+                label="Calendar: Term Label"
+                plain
+              >
+                <span>{siteContent.calendar_term_label || "1st Term"}</span>
+              </EditableText>
+            </p>
+            <p className="font-serif text-2xl font-bold leading-snug">
+              <EditableText
+                contentKey="calendar_term_dates"
+                value={siteContent.calendar_term_dates || ""}
+                fallback="11th July – 25th October, 2026"
+                label="Calendar: Term Dates"
+                plain
+              >
+                <span>{siteContent.calendar_term_dates || "11th July – 25th October, 2026"}</span>
+              </EditableText>
+            </p>
+          </div>
+
+          {/* Key events */}
+          <div className="md:col-span-2 bg-white rounded-2xl border border-primary/10 p-7 shadow-sm">
+            <h3 className="flex items-center gap-2 text-primary font-bold text-sm uppercase tracking-wider mb-5">
+              <BookMarked className="w-4 h-4 text-secondary" />
+              Key Dates
+            </h3>
+            <div className="flex flex-col divide-y divide-primary/5">
+              {events.map((ev, i) => (
+                <div key={i} className="flex items-center justify-between gap-4 py-4 first:pt-0 last:pb-0">
+                  <div className="flex items-center gap-3 min-w-0">
+                    <span className="w-9 h-9 rounded-lg bg-secondary/15 text-secondary flex items-center justify-center shrink-0">
+                      <CalendarDays className="w-4.5 h-4.5" />
+                    </span>
+                    <span className="text-sm font-semibold text-on-surface min-w-0">
+                      <EditableText
+                        contentKey={ev.titleKey}
+                        value={siteContent[ev.titleKey] || ""}
+                        fallback={ev.title}
+                        label={`Calendar: ${ev.title || "Event"}`}
+                        plain
+                      >
+                        <span>{siteContent[ev.titleKey] || ev.title}</span>
+                      </EditableText>
+                    </span>
+                  </div>
+                  <span className="text-xs sm:text-sm font-bold text-primary shrink-0 text-right">
+                    <EditableText
+                      contentKey={ev.dateKey}
+                      value={siteContent[ev.dateKey] || ""}
+                      fallback={ev.date}
+                      label="Calendar: Event Date"
+                      plain
+                    >
+                      <span>{siteContent[ev.dateKey] || ev.date}</span>
+                    </EditableText>
+                  </span>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+
+        {siteContent.calendar_note && (
+          <p className="text-center text-sm text-on-surface-variant italic mt-8 rich-html">
+            <EditableText
+              contentKey="calendar_note"
+              value={siteContent.calendar_note || ""}
+              fallback=""
+              label="Calendar: Note"
+            >
+              <span dangerouslySetInnerHTML={renderHtml(siteContent.calendar_note, "")} />
+            </EditableText>
+          </p>
+        )}
+      </div>
+    </motion.section>
+  );
+}

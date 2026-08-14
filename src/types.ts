@@ -1,4 +1,4 @@
-export type ScreenId = "home" | "admissions" | "curriculum" | "teacher-login" | "teacher-portal" | "teacher-landing" | "admin-settings" | "student-login";
+export type ScreenId = "home" | "admissions" | "curriculum" | "calendar" | "faq" | "gallery" | "teacher-login" | "teacher-portal" | "teacher-landing" | "admin-settings" | "student-login";
 
 export interface NewsItem {
   id: string;
