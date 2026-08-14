@@ -20,6 +20,10 @@ export default function CalendarSection() {
     __html: value && value.trim() ? value : fallback,
   });
 
+  const calendarHeadingGap = parseInt(siteContent.calendar_heading_gap || "40");
+  const calendarPaddingTop = parseInt(siteContent.calendar_padding_top || "96");
+  const calendarPaddingBottom = parseInt(siteContent.calendar_padding_bottom || "96");
+
   const events: CalendarEvent[] = [
     {
       titleKey: "calendar_event_1_title",
@@ -48,10 +52,11 @@ export default function CalendarSection() {
       whileInView={{ opacity: 1, y: 0 }}
       viewport={{ once: true, margin: "-80px" }}
       transition={{ duration: 0.6 }}
-      className="scroll-mt-16 bg-background py-16 sm:py-20"
+      style={{ paddingTop: `${calendarPaddingTop}px`, paddingBottom: `${calendarPaddingBottom}px` }}
+      className="scroll-mt-16 bg-background"
     >
       <div className="max-w-5xl mx-auto px-6">
-        <div className="text-center mb-10">
+        <div style={{ marginBottom: `${calendarHeadingGap}px` }} className="text-center">
           <h2 className="font-serif text-2xl sm:text-3xl text-primary font-bold tracking-wide">
             <EditableText
               contentKey="calendar_heading"

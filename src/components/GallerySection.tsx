@@ -17,6 +17,10 @@ export default function GallerySection() {
     __html: value && value.trim() ? value : fallback,
   });
 
+  const galleryHeadingGap = parseInt(siteContent.gallery_heading_gap || "40");
+  const galleryPaddingTop = parseInt(siteContent.gallery_padding_top || "96");
+  const galleryPaddingBottom = parseInt(siteContent.gallery_padding_bottom || "96");
+
   const items = Array.from({ length: 6 }, (_, i) => ({
     imgKey: `gallery_image_${i + 1}`,
     capKey: `gallery_caption_${i + 1}`,
@@ -35,10 +39,11 @@ export default function GallerySection() {
       whileInView={{ opacity: 1, y: 0 }}
       viewport={{ once: true, margin: "-80px" }}
       transition={{ duration: 0.6 }}
-      className="scroll-mt-16 bg-background py-16 sm:py-20"
+      style={{ paddingTop: `${galleryPaddingTop}px`, paddingBottom: `${galleryPaddingBottom}px` }}
+      className="scroll-mt-16 bg-background"
     >
       <div className="max-w-6xl mx-auto px-6">
-        <div className="text-center mb-10">
+        <div style={{ marginBottom: `${galleryHeadingGap}px` }} className="text-center">
           <div className="flex items-center justify-center gap-2 mb-3">
             <span className="w-8 h-px bg-secondary" />
             <Images className="w-5 h-5 text-secondary" />

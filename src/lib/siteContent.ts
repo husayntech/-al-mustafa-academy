@@ -324,6 +324,9 @@ export const CONTENT_FIELDS: ContentField[] = [
   { key: "welcome_name", label: "Welcome: Signatory Name", type: "text", group: "Welcome Message" },
   { key: "welcome_title", label: "Welcome: Signatory Title", type: "text", group: "Welcome Message" },
   { key: "welcome_photo", label: "Welcome: Director Photo", type: "image", group: "Welcome Message" },
+  { key: "welcome_heading_gap", label: "Welcome: Heading → Message Gap", type: "spacing", group: "Welcome Message" },
+  { key: "welcome_padding_top", label: "Welcome: Section Top Padding", type: "spacing", group: "Welcome Message" },
+  { key: "welcome_padding_bottom", label: "Welcome: Section Bottom Padding", type: "spacing", group: "Welcome Message" },
 
   // ==================== ACADEMIC CALENDAR ====================
   { key: "calendar_heading", label: "Calendar: Section Heading", type: "html", group: "Academic Calendar" },
@@ -337,6 +340,9 @@ export const CONTENT_FIELDS: ContentField[] = [
   { key: "calendar_event_3_title", label: "Calendar: Event 3 Title", type: "text", group: "Academic Calendar" },
   { key: "calendar_event_3_date", label: "Calendar: Event 3 Date", type: "text", group: "Academic Calendar" },
   { key: "calendar_note", label: "Calendar: Note", type: "html", group: "Academic Calendar" },
+  { key: "calendar_heading_gap", label: "Calendar: Heading → Term Card Gap", type: "spacing", group: "Academic Calendar" },
+  { key: "calendar_padding_top", label: "Calendar: Section Top Padding", type: "spacing", group: "Academic Calendar" },
+  { key: "calendar_padding_bottom", label: "Calendar: Section Bottom Padding", type: "spacing", group: "Academic Calendar" },
 
   // ==================== FAQS ====================
   { key: "faq_heading", label: "FAQ: Section Heading", type: "html", group: "FAQs" },
@@ -353,6 +359,9 @@ export const CONTENT_FIELDS: ContentField[] = [
   { key: "faq_a5", label: "FAQ: Answer 5", type: "html", group: "FAQs" },
   { key: "faq_q6", label: "FAQ: Question 6", type: "text", group: "FAQs" },
   { key: "faq_a6", label: "FAQ: Answer 6", type: "html", group: "FAQs" },
+  { key: "faq_heading_gap", label: "FAQ: Heading → Questions Gap", type: "spacing", group: "FAQs" },
+  { key: "faq_padding_top", label: "FAQ: Section Top Padding", type: "spacing", group: "FAQs" },
+  { key: "faq_padding_bottom", label: "FAQ: Section Bottom Padding", type: "spacing", group: "FAQs" },
 
   // ==================== GALLERY ====================
   { key: "gallery_heading", label: "Gallery: Section Heading", type: "html", group: "Gallery" },
@@ -369,6 +378,9 @@ export const CONTENT_FIELDS: ContentField[] = [
   { key: "gallery_caption_5", label: "Gallery: Caption 5", type: "text", group: "Gallery" },
   { key: "gallery_image_6", label: "Gallery: Image 6", type: "image", group: "Gallery" },
   { key: "gallery_caption_6", label: "Gallery: Caption 6", type: "text", group: "Gallery" },
+  { key: "gallery_heading_gap", label: "Gallery: Heading → Photos Gap", type: "spacing", group: "Gallery" },
+  { key: "gallery_padding_top", label: "Gallery: Section Top Padding", type: "spacing", group: "Gallery" },
+  { key: "gallery_padding_bottom", label: "Gallery: Section Bottom Padding", type: "spacing", group: "Gallery" },
 
   // ==================== WHATSAPP WIDGET ====================
   { key: "whatsapp_widget_label", label: "WhatsApp Widget: Label", type: "text", group: "WhatsApp Widget" },
@@ -653,6 +665,9 @@ export const CONTENT_DEFAULTS: Record<string, string> = {
   welcome_name: "Dr. Ibrahim Mustapha",
   welcome_title: "Director of Studies, Al Mustafa Academy",
   welcome_photo: "",
+  welcome_heading_gap: "40",
+  welcome_padding_top: "80",
+  welcome_padding_bottom: "64",
 
   // ---- Academic calendar ----
   calendar_heading: "MADRASAH ACADEMIC CALENDAR",
@@ -667,6 +682,9 @@ export const CONTENT_DEFAULTS: Record<string, string> = {
   calendar_event_3_date: "To be announced",
   calendar_note:
     "All parents are kindly advised to take note of these important dates. Jazākumullāhu Khayran.",
+  calendar_heading_gap: "40",
+  calendar_padding_top: "96",
+  calendar_padding_bottom: "96",
 
   // ---- FAQs ----
   faq_heading: "Frequently Asked Questions",
@@ -689,6 +707,9 @@ export const CONTENT_DEFAULTS: Record<string, string> = {
   faq_q6: "When does the academic year begin?",
   faq_a6:
     "Our academic calendar runs by Islamic (Hijri) and civil dates each session — see the Academic Calendar section for term dates, examinations, and important events such as the Qur’an competition.",
+  faq_heading_gap: "40",
+  faq_padding_top: "96",
+  faq_padding_bottom: "96",
 
   // ---- Gallery ----
   gallery_heading: "Life at Al Mustafa Academy",
@@ -705,6 +726,9 @@ export const CONTENT_DEFAULTS: Record<string, string> = {
   gallery_caption_5: "",
   gallery_image_6: "",
   gallery_caption_6: "",
+  gallery_heading_gap: "40",
+  gallery_padding_top: "96",
+  gallery_padding_bottom: "96",
 
   // ---- WhatsApp widget ----
   whatsapp_widget_label: "Chat with us on WhatsApp",

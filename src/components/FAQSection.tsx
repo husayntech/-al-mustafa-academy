@@ -15,6 +15,10 @@ export default function FAQSection() {
     __html: value && value.trim() ? value : fallback,
   });
 
+  const faqHeadingGap = parseInt(siteContent.faq_heading_gap || "40");
+  const faqPaddingTop = parseInt(siteContent.faq_padding_top || "96");
+  const faqPaddingBottom = parseInt(siteContent.faq_padding_bottom || "96");
+
   const items: { qKey: string; aKey: string; q: string; a: string }[] = Array.from({ length: 6 }, (_, i) => ({
     qKey: `faq_q${i + 1}`,
     aKey: `faq_a${i + 1}`,
@@ -29,10 +33,11 @@ export default function FAQSection() {
       whileInView={{ opacity: 1, y: 0 }}
       viewport={{ once: true, margin: "-80px" }}
       transition={{ duration: 0.6 }}
-      className="scroll-mt-16 bg-surface/70 border-y border-primary/5 py-16 sm:py-20"
+      style={{ paddingTop: `${faqPaddingTop}px`, paddingBottom: `${faqPaddingBottom}px` }}
+      className="scroll-mt-16 bg-surface/70 border-y border-primary/5"
     >
       <div className="max-w-3xl mx-auto px-6">
-        <div className="text-center mb-10">
+        <div style={{ marginBottom: `${faqHeadingGap}px` }} className="text-center">
           <div className="flex items-center justify-center gap-2 mb-3">
             <span className="w-8 h-px bg-secondary" />
             <HelpCircle className="w-5 h-5 text-secondary" />

@@ -16,6 +16,10 @@ export default function WelcomeSection() {
     __html: value && value.trim() ? value : fallback,
   });
 
+  const welcomeHeadingGap = parseInt(siteContent.welcome_heading_gap || "40");
+  const welcomePaddingTop = parseInt(siteContent.welcome_padding_top || "80");
+  const welcomePaddingBottom = parseInt(siteContent.welcome_padding_bottom || "64");
+
   const name = siteContent.welcome_name || "Dr. Ibrahim Mustapha";
   const title = siteContent.welcome_title || "Director of Studies, Al Mustafa Academy";
   // Monogram used when no photo has been uploaded yet
@@ -34,7 +38,8 @@ export default function WelcomeSection() {
       whileInView={{ opacity: 1, y: 0 }}
       viewport={{ once: true, margin: "-80px" }}
       transition={{ duration: 0.6 }}
-      className="scroll-mt-16 bg-surface/70 border-y border-primary/5 py-16 sm:py-20"
+      style={{ paddingTop: `${welcomePaddingTop}px`, paddingBottom: `${welcomePaddingBottom}px` }}
+      className="scroll-mt-16 bg-surface/70 border-y border-primary/5"
     >
       <div className="max-w-4xl mx-auto px-6">
         <div className="flex items-center justify-center gap-3 mb-4">
@@ -45,7 +50,7 @@ export default function WelcomeSection() {
           <span className="w-10 h-px bg-secondary" />
         </div>
 
-        <h2 className="font-serif text-2xl sm:text-3xl text-primary font-bold text-center mb-10">
+        <h2 style={{ marginBottom: `${welcomeHeadingGap}px` }} className="font-serif text-2xl sm:text-3xl text-primary font-bold text-center">
           <EditableText
             contentKey="welcome_heading"
             value={siteContent.welcome_heading || ""}
