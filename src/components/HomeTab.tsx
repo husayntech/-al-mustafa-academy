@@ -190,17 +190,6 @@ export default function HomeTab({ onScreenChange }: HomeTabProps) {
               <span>{ctaText}</span>
             </EditableText>
           </motion.button>
-          <motion.button
-            initial={{ scale: 0.9, opacity: 0 }}
-            animate={{ scale: 1, opacity: 1 }}
-            transition={{ delay: 0.8 }}
-            onClick={() => onScreenChange("welcome")}
-            className="mt-4 inline-flex items-center gap-2 text-white/85 hover:text-white text-xs font-semibold uppercase tracking-wider underline decoration-secondary/70 underline-offset-4 hover:decoration-secondary transition-all cursor-pointer"
-          >
-            <EditableText contentKey="welcome_cta_label" value={siteContent.welcome_cta_label || ""} fallback="Read the Director's Welcome Message" label="Welcome CTA Label" plain>
-              <span>{siteContent.welcome_cta_label || "Read the Director's Welcome Message"}</span>
-            </EditableText>
-          </motion.button>
         </div>
 
         {/* Bouncing Scroll Down Trigger */}

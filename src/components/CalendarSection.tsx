@@ -67,17 +67,19 @@ export default function CalendarSection() {
               <span dangerouslySetInnerHTML={renderHtml(siteContent.calendar_heading, "MADRASAH ACADEMIC CALENDAR")} />
             </EditableText>
           </h2>
-          <p className="text-secondary font-semibold text-xs sm:text-sm uppercase tracking-widest mt-2">
-            <EditableText
-              contentKey="calendar_subtitle"
-              value={siteContent.calendar_subtitle || ""}
-              fallback="1448 AH (2026/2027 Session)"
-              label="Calendar: Subtitle (Session)"
-              plain
-            >
-              <span>{siteContent.calendar_subtitle || "1448 AH (2026/2027 Session)"}</span>
-            </EditableText>
-          </p>
+          {siteContent.calendar_subtitle && siteContent.calendar_subtitle.trim() && (
+            <p className="text-secondary font-semibold text-xs sm:text-sm uppercase tracking-widest mt-2">
+              <EditableText
+                contentKey="calendar_subtitle"
+                value={siteContent.calendar_subtitle || ""}
+                fallback=""
+                label="Calendar: Subtitle (Session)"
+                plain
+              >
+                <span>{siteContent.calendar_subtitle}</span>
+              </EditableText>
+            </p>
+          )}
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6 items-stretch">

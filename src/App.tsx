@@ -117,10 +117,26 @@ export default function App() {
     academicYear: string;
   } | null>(null);
 
-  // Every public content section is its own page — nav links switch screens.
+  // Calendar / FAQ / Gallery live on the Home page — their links scroll to the
+  // matching section there instead of switching to a standalone screen.
+  const HOME_SECTION_IDS: Record<string, string> = {
+    calendar: "calendar-section",
+    faq: "faq-section",
+    gallery: "gallery-section",
+  };
   const handleScreenChange = (screenId: ScreenId) => {
-    setCurrentScreen(screenId);
-    window.scrollTo({ top: 0, behavior: "smooth" });
+    const sectionId = HOME_SECTION_IDS[screenId];
+    if (sectionId) {
+      setCurrentScreen("home");
+      window.scrollTo({ top: 0 });
+      setTimeout(() => {
+        const el = document.getElementById(sectionId);
+        if (el) el.scrollIntoView({ behavior: "smooth", block: "start" });
+      }, 400);
+    } else {
+      setCurrentScreen(screenId);
+      window.scrollTo({ top: 0, behavior: "smooth" });
+    }
   };
 
   // Sticky "Apply" button: opens the Admissions page, landing on the inquiry form.
@@ -144,16 +160,18 @@ export default function App() {
         return <WelcomeSection />;
       case "admissions":
         return <AdmissionsTab />;
-      case "calendar":
-        return <CalendarSection />;
       case "curriculum":
         return <MadrasahActivitiesTab />;
-      case "faq":
-        return <FAQSection />;
-      case "gallery":
-        return <GallerySection />;
       default:
-        return <HomeTab onScreenChange={handleScreenChange} />;
+        // Home page — hero + mission, then the Academic Calendar, FAQs and Gallery.
+        return (
+          <>
+            <HomeTab onScreenChange={handleScreenChange} />
+            <CalendarSection />
+            <FAQSection />
+            <GallerySection />
+          </>
+        );
     }
   };
 

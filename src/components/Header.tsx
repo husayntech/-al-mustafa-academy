@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { motion, AnimatePresence } from "motion/react";
-import { Menu, Home, GraduationCap, BookOpen, CalendarDays, HelpCircle, Images, ChevronDown, Lock, UserRound, ShieldCheck } from "lucide-react";
+import { Menu, Home, GraduationCap, BookOpen, CalendarDays, HelpCircle, ChevronDown, Lock, UserRound, ShieldCheck } from "lucide-react";
 import { ScreenId } from "../types";
 import { useSiteContent, normalizeImageUrl } from "../lib/siteContent";
 import EditableImage from "./EditableImage";
@@ -32,7 +32,6 @@ export default function Header({
     { id: "calendar", label: siteContent.nav_calendar_label || "Academic Calendar", labelKey: "nav_calendar_label", icon: CalendarDays },
     { id: "curriculum", label: siteContent.nav_curriculum_label || "Madrasah Activities", labelKey: "nav_curriculum_label", icon: BookOpen },
     { id: "faq", label: siteContent.nav_faq_label || "FAQs", labelKey: "nav_faq_label", icon: HelpCircle },
-    { id: "gallery", label: siteContent.nav_gallery_label || "Gallery", labelKey: "nav_gallery_label", icon: Images },
   ];
 
   const portalLinks: { label: string; icon: any; onClick?: () => void }[] = [
