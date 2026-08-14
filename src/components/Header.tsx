@@ -111,14 +111,6 @@ export default function Header({
                   <EditableText contentKey={link.labelKey} value={siteContent[link.labelKey] || ""} fallback={link.label} label={`Navigation: ${link.label}`}>
                     <span dangerouslySetInnerHTML={{ __html: link.label }} />
                   </EditableText>
-                  {/* Animated sliding underline indicator */}
-                  {isActive && (
-                    <motion.span
-                      layoutId="nav-underline"
-                      transition={{ type: "spring", damping: 28, stiffness: 320 }}
-                      className="absolute inset-x-0 bottom-0 h-0.5 rounded-full bg-secondary"
-                    />
-                  )}
                 </button>
               );
             })}
