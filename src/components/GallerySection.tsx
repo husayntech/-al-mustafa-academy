@@ -21,10 +21,12 @@ export default function GallerySection() {
   const galleryPaddingTop = parseInt(siteContent.gallery_padding_top || "96");
   const galleryPaddingBottom = parseInt(siteContent.gallery_padding_bottom || "96");
 
+  // Gallery tiles render at ~400px, so request an 800px thumbnail (2x for
+  // retina) instead of the full-size original — much lighter on mobile.
   const items = Array.from({ length: 6 }, (_, i) => ({
     imgKey: `gallery_image_${i + 1}`,
     capKey: `gallery_caption_${i + 1}`,
-    img: normalizeImageUrl(siteContent[`gallery_image_${i + 1}`] || ""),
+    img: normalizeImageUrl(siteContent[`gallery_image_${i + 1}`] || "", 800),
     cap: siteContent[`gallery_caption_${i + 1}`] || "",
   }));
 
@@ -91,6 +93,7 @@ export default function GallerySection() {
                       alt={item.cap || `Al Mustafa Academy — photo ${i + 1}`}
                       className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
                       loading="lazy"
+                      decoding="async"
                       onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }}
                     />
                   ) : (

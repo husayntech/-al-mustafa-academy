@@ -332,8 +332,12 @@ export const CONTENT_FIELDS: ContentField[] = [
   // ==================== ACADEMIC CALENDAR ====================
   { key: "calendar_heading", label: "Calendar: Section Heading", type: "html", group: "Academic Calendar" },
   { key: "calendar_subtitle", label: "Calendar: Subtitle (Session)", type: "text", group: "Academic Calendar" },
-  { key: "calendar_term_label", label: "Calendar: Term Label", type: "text", group: "Academic Calendar" },
-  { key: "calendar_term_dates", label: "Calendar: Term Dates", type: "text", group: "Academic Calendar" },
+  { key: "calendar_term_label", label: "Calendar: Term 1 Label", type: "text", group: "Academic Calendar" },
+  { key: "calendar_term_dates", label: "Calendar: Term 1 Dates", type: "text", group: "Academic Calendar" },
+  { key: "calendar_term_2_label", label: "Calendar: Term 2 Label", type: "text", group: "Academic Calendar" },
+  { key: "calendar_term_2_dates", label: "Calendar: Term 2 Dates", type: "text", group: "Academic Calendar" },
+  { key: "calendar_term_3_label", label: "Calendar: Term 3 Label", type: "text", group: "Academic Calendar" },
+  { key: "calendar_term_3_dates", label: "Calendar: Term 3 Dates", type: "text", group: "Academic Calendar" },
   { key: "calendar_event_1_title", label: "Calendar: Event 1 Title", type: "text", group: "Academic Calendar" },
   { key: "calendar_event_1_date", label: "Calendar: Event 1 Date", type: "text", group: "Academic Calendar" },
   { key: "calendar_event_2_title", label: "Calendar: Event 2 Title", type: "text", group: "Academic Calendar" },
@@ -676,6 +680,10 @@ export const CONTENT_DEFAULTS: Record<string, string> = {
   calendar_subtitle: "",
   calendar_term_label: "1st Term",
   calendar_term_dates: "11th July – 25th October, 2026",
+  calendar_term_2_label: "2nd Term",
+  calendar_term_2_dates: "",
+  calendar_term_3_label: "3rd Term",
+  calendar_term_3_dates: "",
   calendar_event_1_title: "Musābaqotu’l-Qur’ān (Qur’an Competition)",
   calendar_event_1_date: "10th & 11th October, 2026",
   calendar_event_2_title: "1st Term Examination",
@@ -794,11 +802,13 @@ export function applyTypography(content: Record<string, string>) {
  * Converts Google Drive "uc?export=view" links into a reliably-served
  * thumbnail URL so images actually display in the browser.
  */
-export function normalizeImageUrl(url: string | undefined | null): string {
+export function normalizeImageUrl(url: string | undefined | null, width?: number): string {
   if (!url) return "";
   const idMatch = url.match(/drive\.google\.com\/(?:uc\?export=view&id=|file\/d\/)([\w-]+)/);
   if (idMatch) {
-    return `https://drive.google.com/thumbnail?id=${idMatch[1]}&sz=w1400`;
+    // Serve a thumbnail sized to the slot (default 1400px wide) so small
+    // images like gallery tiles don't download a full-size original.
+    return `https://drive.google.com/thumbnail?id=${idMatch[1]}&sz=${width ? `w${width}` : "w1400"}`;
   }
   return url;
 }

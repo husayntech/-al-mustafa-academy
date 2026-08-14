@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { motion } from "motion/react";
 import { CalendarDays, BookMarked, Landmark } from "lucide-react";
 import { useSiteContent } from "../lib/siteContent";
@@ -23,6 +24,31 @@ export default function CalendarSection() {
   const calendarHeadingGap = parseInt(siteContent.calendar_heading_gap || "40");
   const calendarPaddingTop = parseInt(siteContent.calendar_padding_top || "96");
   const calendarPaddingBottom = parseInt(siteContent.calendar_padding_bottom || "96");
+
+  // Term tabs — 1st/2nd/3rd term, so parents can plan further ahead. Dates
+  // left empty show "To be announced" and are editable in the admin Content tab.
+  const [activeTerm, setActiveTerm] = useState(0);
+  const terms: { labelKey: string; dateKey: string; label: string; dates: string }[] = [
+    {
+      labelKey: "calendar_term_label",
+      dateKey: "calendar_term_dates",
+      label: siteContent.calendar_term_label || "1st Term",
+      dates: siteContent.calendar_term_dates || "",
+    },
+    {
+      labelKey: "calendar_term_2_label",
+      dateKey: "calendar_term_2_dates",
+      label: siteContent.calendar_term_2_label || "2nd Term",
+      dates: siteContent.calendar_term_2_dates || "",
+    },
+    {
+      labelKey: "calendar_term_3_label",
+      dateKey: "calendar_term_3_dates",
+      label: siteContent.calendar_term_3_label || "3rd Term",
+      dates: siteContent.calendar_term_3_dates || "",
+    },
+  ];
+  const activeDates = terms[activeTerm];
 
   const events: CalendarEvent[] = [
     {
@@ -83,31 +109,38 @@ export default function CalendarSection() {
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6 items-stretch">
-          {/* Term card — highlighted */}
+          {/* Term card — highlighted, with 1st/2nd/3rd term tabs */}
           <div className="bg-primary text-white rounded-2xl p-7 flex flex-col justify-center shadow-lg relative overflow-hidden">
             <div className="absolute -bottom-6 -right-6 opacity-10">
               <Landmark className="w-40 h-40" />
             </div>
-            <p className="text-[10px] font-bold uppercase tracking-widest text-secondary-fixed mb-2">
+            <div className="flex flex-wrap gap-2 mb-5 relative z-10">
+              {terms.map((t, i) => (
+                <button
+                  key={t.labelKey}
+                  onClick={() => setActiveTerm(i)}
+                  className={`px-3 py-1.5 rounded-full text-[10px] font-bold uppercase tracking-wider transition-all cursor-pointer ${
+                    i === activeTerm
+                      ? "bg-secondary-fixed text-primary shadow"
+                      : "bg-white/10 text-white/80 hover:bg-white/20"
+                  }`}
+                  aria-pressed={i === activeTerm}
+                >
+                  <EditableText contentKey={t.labelKey} value={siteContent[t.labelKey] || ""} fallback={t.label} label={`Calendar: ${t.label} Label`} plain>
+                    <span>{siteContent[t.labelKey] || t.label}</span>
+                  </EditableText>
+                </button>
+              ))}
+            </div>
+            <p className="font-serif text-2xl font-bold leading-snug relative z-10">
               <EditableText
-                contentKey="calendar_term_label"
-                value={siteContent.calendar_term_label || ""}
-                fallback="1st Term"
-                label="Calendar: Term Label"
+                contentKey={activeDates.dateKey}
+                value={siteContent[activeDates.dateKey] || ""}
+                fallback={activeDates.dates || "To be announced"}
+                label={`Calendar: ${activeDates.label} Dates`}
                 plain
               >
-                <span>{siteContent.calendar_term_label || "1st Term"}</span>
-              </EditableText>
-            </p>
-            <p className="font-serif text-2xl font-bold leading-snug">
-              <EditableText
-                contentKey="calendar_term_dates"
-                value={siteContent.calendar_term_dates || ""}
-                fallback="11th July – 25th October, 2026"
-                label="Calendar: Term Dates"
-                plain
-              >
-                <span>{siteContent.calendar_term_dates || "11th July – 25th October, 2026"}</span>
+                <span>{siteContent[activeDates.dateKey] || activeDates.dates || "To be announced"}</span>
               </EditableText>
             </p>
           </div>
