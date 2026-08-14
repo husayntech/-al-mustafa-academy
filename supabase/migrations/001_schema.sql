@@ -96,6 +96,18 @@ CREATE TABLE IF NOT EXISTS public.student_term_reports (
   UNIQUE(student_id, term, year)
 );
 
+-- 5d. Student scratch-card PINs
+-- student_id is NULL until a card is redeemed by a specific student;
+-- class_id optionally scopes a batch to one class.
+CREATE TABLE IF NOT EXISTS public.student_pins (
+  id SERIAL PRIMARY KEY,
+  student_id INTEGER REFERENCES public.students(id) ON DELETE CASCADE,
+  class_id INTEGER REFERENCES public.classes(id) ON DELETE SET NULL,
+  pin TEXT UNIQUE NOT NULL,
+  active INTEGER DEFAULT 1,
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
 -- 6. Sessions table
 CREATE TABLE IF NOT EXISTS public.sessions (
   id SERIAL PRIMARY KEY,

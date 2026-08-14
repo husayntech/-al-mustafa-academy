@@ -264,6 +264,14 @@ export const POSTGRES_SCHEMA_SQL = `
       updated_at TIMESTAMPTZ DEFAULT NOW(),
       UNIQUE(student_id, term, year)
     );
+    CREATE TABLE IF NOT EXISTS public.student_pins (
+      id SERIAL PRIMARY KEY,
+      student_id INTEGER REFERENCES public.students(id) ON DELETE CASCADE,
+      class_id INTEGER REFERENCES public.classes(id) ON DELETE SET NULL,
+      pin TEXT UNIQUE NOT NULL,
+      active INTEGER DEFAULT 1,
+      created_at TIMESTAMPTZ DEFAULT NOW()
+    );
     CREATE TABLE IF NOT EXISTS public.sessions (
       id SERIAL PRIMARY KEY,
       user_id INTEGER NOT NULL REFERENCES public.users(id),
@@ -324,6 +332,16 @@ const POSTGRES_UPGRADE_SQL = `
     updated_at TIMESTAMPTZ DEFAULT NOW(),
     UNIQUE(student_id, term, year)
   );
+  CREATE TABLE IF NOT EXISTS public.student_pins (
+    id SERIAL PRIMARY KEY,
+    student_id INTEGER REFERENCES public.students(id) ON DELETE CASCADE,
+    class_id INTEGER REFERENCES public.classes(id) ON DELETE SET NULL,
+    pin TEXT UNIQUE NOT NULL,
+    active INTEGER DEFAULT 1,
+    created_at TIMESTAMPTZ DEFAULT NOW()
+  );
+  ALTER TABLE public.student_pins ADD COLUMN IF NOT EXISTS class_id INTEGER REFERENCES public.classes(id) ON DELETE SET NULL;
+  ALTER TABLE public.student_pins ALTER COLUMN student_id DROP NOT NULL;
   ALTER TABLE public.results ADD COLUMN IF NOT EXISTS ca1_score DOUBLE PRECISION;
   ALTER TABLE public.results ADD COLUMN IF NOT EXISTS ca2_score DOUBLE PRECISION;
   ALTER TABLE public.results ADD COLUMN IF NOT EXISTS ca3_score DOUBLE PRECISION;
@@ -331,24 +349,20 @@ const POSTGRES_UPGRADE_SQL = `
 
 async function ensureTableUpgrades() {
   if (!sql) return;
-  try {
-    const rows = await sql.unsafe(
-      `SELECT to_regclass('public.attendance') IS NOT NULL AS has_attendance`
-    );
-    if (rows[0]?.has_attendance) return;
-    const statements = POSTGRES_UPGRADE_SQL
-      .split(";")
-      .map((s) => s.trim())
-      .filter((s) => s && s.length > 0);
-    for (const stmt of statements) {
-      try {
-        await sql.unsafe(stmt);
-      } catch (err: any) {
-        console.warn("⚠️  Schema upgrade statement skipped:", err?.message || err);
-      }
+  // Every statement below is idempotent (CREATE TABLE IF NOT EXISTS / ADD COLUMN
+  // IF NOT EXISTS / DROP NOT NULL), so we run them ALL on every cold start. An
+  // early-exit guard is a footgun: it skipped newer tables on existing databases
+  // twice already, so correctness wins over saving a few round-trips.
+  const statements = POSTGRES_UPGRADE_SQL
+    .split(";")
+    .map((s) => s.trim())
+    .filter((s) => s && s.length > 0);
+  for (const stmt of statements) {
+    try {
+      await sql.unsafe(stmt);
+    } catch (err: any) {
+      console.warn("⚠️  Schema upgrade statement skipped:", err?.message || err);
     }
-  } catch (err: any) {
-    console.warn("⚠️  Schema upgrade check skipped:", err?.message || err);
   }
 }
 
@@ -728,6 +742,17 @@ function ensureSchema(database: SqlJsDatabase) {
   `);
 
   database.run(`
+    CREATE TABLE IF NOT EXISTS student_pins (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      student_id INTEGER REFERENCES students(id) ON DELETE CASCADE,
+      class_id INTEGER REFERENCES classes(id) ON DELETE SET NULL,
+      pin TEXT UNIQUE NOT NULL,
+      active INTEGER DEFAULT 1,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+    )
+  `);
+
+  database.run(`
     CREATE TABLE IF NOT EXISTS sessions (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       user_id INTEGER NOT NULL REFERENCES users(id),
@@ -786,6 +811,7 @@ function ensureSchema(database: SqlJsDatabase) {
   try { database.run(`ALTER TABLE students ADD COLUMN parent_phone TEXT`); } catch {}
   try { database.run(`ALTER TABLE students ADD COLUMN passport_photo TEXT`); } catch {}
   try { database.run(`ALTER TABLE students ADD COLUMN student_password TEXT DEFAULT 'student123'`); } catch {}
+  try { database.run(`ALTER TABLE student_pins ADD COLUMN class_id INTEGER REFERENCES classes(id) ON DELETE SET NULL`); } catch {}
   try { database.run(`ALTER TABLE users ADD COLUMN surname TEXT`); } catch {}
   try { database.run(`ALTER TABLE users ADD COLUMN first_name TEXT`); } catch {}
   try { database.run(`ALTER TABLE users ADD COLUMN middle_name TEXT`); } catch {}

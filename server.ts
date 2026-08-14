@@ -1126,6 +1126,203 @@ app.delete("/api/admin/teacher-classes/:id", authMiddleware, adminMiddleware, as
   }
 });
 
+// --- Scratch-Card PIN Routes (admin only) ---
+// PIN alphabet omits look-alike characters (0/O, 1/I) so cards are easy to read.
+const PIN_ALPHABET = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
+const PIN_GROUPS = 3;
+const PIN_GROUP_LEN = 4;
+
+function generatePin(): string {
+  const rand = (n: number) => Math.floor(Math.random() * n);
+  const group = () => {
+    let g = "";
+    for (let i = 0; i < PIN_GROUP_LEN; i++) g += PIN_ALPHABET[rand(PIN_ALPHABET.length)];
+    return g;
+  };
+  return Array.from({ length: PIN_GROUPS }, group).join("-");
+}
+
+app.get("/api/admin/pins", authMiddleware, adminMiddleware, async (req: AuthenticatedRequest, res: Response) => {
+  try {
+    const pins = await queryAll(
+      `SELECT p.*, s.full_name as student_name, c.name as class_name
+       FROM student_pins p
+       LEFT JOIN students s ON p.student_id = s.id
+       LEFT JOIN classes c ON COALESCE(p.class_id, s.class_id) = c.id
+       ORDER BY p.id DESC`
+    );
+    res.json({ pins });
+  } catch (error: any) {
+    console.error("PIN list error:", error);
+    res.status(500).json({ error: "Failed to fetch PINs" });
+  }
+});
+
+app.post("/api/admin/pins/generate", authMiddleware, adminMiddleware, async (req: AuthenticatedRequest, res: Response) => {
+  try {
+    const count = Math.min(Math.max(parseInt(req.body.count || "1"), 1), 500);
+    const classId = req.body.class_id ? parseInt(req.body.class_id) : null;
+    const studentId = req.body.student_id ? parseInt(req.body.student_id) : null;
+    if (studentId) {
+      const student = await queryOne("SELECT class_id FROM students WHERE id = $1", [studentId]);
+      if (!student) return res.status(404).json({ error: "Student not found" });
+    }
+    const pins: string[] = [];
+    for (let i = 0; i < count; i++) {
+      let pin = generatePin();
+      // Retry on the rare collision (pin column is UNIQUE)
+      let attempts = 0;
+      while (await queryOne("SELECT id FROM student_pins WHERE UPPER(REPLACE(pin, ' ', '')) = $1", [pin.replace(/-/g, "")]) && attempts < 5) {
+        pin = generatePin();
+        attempts++;
+      }
+      await execute(
+        "INSERT INTO student_pins (student_id, class_id, pin, active) VALUES ($1, $2, $3, 1)",
+        [studentId, classId, pin]
+      );
+      pins.push(pin);
+    }
+    res.json({ pins, count: pins.length, message: `${pins.length} PIN${pins.length === 1 ? "" : "s"} generated` });
+  } catch (error: any) {
+    console.error("PIN generate error:", error);
+    res.status(500).json({ error: "Failed to generate PINs" });
+  }
+});
+
+app.post("/api/admin/pins/deactivate", authMiddleware, adminMiddleware, async (req: AuthenticatedRequest, res: Response) => {
+  try {
+    const id = parseInt(req.body.id);
+    if (!id) return res.status(400).json({ error: "PIN id is required" });
+    await execute("UPDATE student_pins SET active = 0 WHERE id = $1", [id]);
+    res.json({ message: "PIN deactivated" });
+  } catch (error: any) {
+    res.status(500).json({ error: "Failed to deactivate PIN" });
+  }
+});
+
+// --- Broadcast / Notification Engine (admin only) ---
+// SMS via Termii (https://developers.termii.com/messaging-api) to parents;
+// email via the existing SMTP transport to staff. When credentials are not
+// configured, messages are logged and reported so the flow stays testable.
+const TERMII_API_KEY = process.env.TERMII_API_KEY || "";
+const TERMII_SENDER_ID = process.env.TERMII_SENDER_ID || "AlMustafa";
+const TERMII_URL = process.env.TERMII_URL || "https://api.ng.termii.com/api/sms/send";
+
+function normalizeNigerianPhone(raw: string): string {
+  let phone = String(raw).trim().replace(/[^0-9+]/g, "");
+  if (phone.startsWith("0")) phone = "+234" + phone.slice(1);
+  else if (!phone.startsWith("+")) phone = "+234" + phone;
+  return phone;
+}
+
+app.post("/api/admin/broadcast", authMiddleware, adminMiddleware, async (req: AuthenticatedRequest, res: Response) => {
+  try {
+    const { message, channel, class_id, subject } = req.body;
+    if (!message || !String(message).trim()) {
+      return res.status(400).json({ error: "Message is required" });
+    }
+    const chan = channel === "email" ? "email" : "sms";
+    const text = String(message).trim();
+    let classId: number | null = class_id ? parseInt(class_id) : null;
+    if (Number.isNaN(classId)) classId = null;
+
+    if (chan === "sms") {
+      let rows;
+      if (classId) {
+        rows = await queryAll(
+          "SELECT DISTINCT parent_phone, parent_name FROM students WHERE class_id = $1 AND parent_phone IS NOT NULL AND TRIM(parent_phone) <> ''",
+          [classId]
+        );
+      } else {
+        rows = await queryAll(
+          "SELECT DISTINCT parent_phone, parent_name FROM students WHERE parent_phone IS NOT NULL AND TRIM(parent_phone) <> ''"
+        );
+      }
+      const phones = rows.map((r: any) => normalizeNigerianPhone(r.parent_phone));
+      let sent = 0;
+      let failures = 0;
+      if (TERMII_API_KEY) {
+        for (const to of phones) {
+          try {
+            const resp = await fetch(TERMII_URL, {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                api_key: TERMII_API_KEY,
+                to,
+                from: TERMII_SENDER_ID.slice(0, 11),
+                sms: text,
+                type: "plain",
+                channel: "generic",
+              }),
+            });
+            if (resp.ok) sent++;
+            else failures++;
+          } catch (err) {
+            failures++;
+          }
+        }
+      } else {
+        // Dev mode: log instead of sending
+        console.log(`[broadcast:sms] DEV MODE — would send to ${phones.length} phone(s): ${text}`);
+      }
+      res.json({
+        message: TERMII_API_KEY
+          ? `Broadcast complete: ${sent} sent, ${failures} failed`
+          : "SMS broadcast not configured (no TERMII_API_KEY) — recipients logged for testing.",
+        channel: "sms",
+        recipients: phones.length,
+        sent,
+        failures,
+        configured: Boolean(TERMII_API_KEY),
+      });
+    } else {
+      // Email to staff
+      const rows = await queryAll(
+        "SELECT email, full_name FROM users WHERE email IS NOT NULL AND TRIM(email) <> '' AND role <> 'student'"
+      );
+      let sent = 0;
+      let failures = 0;
+      if (isEmailConfigured()) {
+        const transporter = nodemailer.createTransport({
+          host: SMTP_HOST,
+          port: SMTP_PORT,
+          secure: SMTP_PORT === 465,
+          auth: { user: SMTP_USER, pass: SMTP_PASS },
+        });
+        for (const row of rows as any[]) {
+          try {
+            await transporter.sendMail({
+              from: MAIL_FROM,
+              to: row.email,
+              subject: subject || "Al Mustafa Academy — Announcement",
+              text,
+            });
+            sent++;
+          } catch (err) {
+            failures++;
+          }
+        }
+      } else {
+        console.log(`[broadcast:email] DEV MODE — would email ${rows.length} staff: ${text}`);
+      }
+      res.json({
+        message: isEmailConfigured()
+          ? `Broadcast complete: ${sent} sent, ${failures} failed`
+          : "Email broadcast not configured (SMTP) — recipients logged for testing.",
+        channel: "email",
+        recipients: rows.length,
+        sent,
+        failures,
+        configured: isEmailConfigured(),
+      });
+    }
+  } catch (error: any) {
+    console.error("Broadcast error:", error);
+    res.status(500).json({ error: "Failed to send broadcast" });
+  }
+});
+
 // --- Class Routes ---
 app.get("/api/classes", authMiddleware, async (req: AuthenticatedRequest, res: Response) => {
   try {
@@ -1671,9 +1868,9 @@ app.post("/api/auth/teacher-login", async (req: Request, res: Response) => {
 // Student login (surname + password)
 app.post("/api/auth/student-login", async (req: Request, res: Response) => {
   try {
-    const { surname, password } = req.body;
+    const { surname, password, pin } = req.body;
     if (!surname) return res.status(400).json({ error: "Surname is required" });
-    if (!password) return res.status(400).json({ error: "Password is required" });
+    if (!password && !pin) return res.status(400).json({ error: "Password or scratch-card PIN is required" });
 
     // Find student by surname (exact match on surname column, or fallback to last word in full_name)
     let student = await queryOne(
@@ -1693,10 +1890,28 @@ app.post("/api/auth/student-login", async (req: Request, res: Response) => {
       return res.status(401).json({ error: "Student not found with this surname" });
     }
 
-    // Check password: use the student_password field, fallback to default
-    const storedPassword = (student as any).student_password || 'student123';
-    if (password !== storedPassword) {
-      return res.status(401).json({ error: "Invalid password" });
+    // Scratch-card PIN path: single-use, case-insensitive, class-scoped when the
+    // PIN was generated for a specific class.
+    if (pin) {
+      const normalizedPin = String(pin).trim().toUpperCase().replace(/\s+/g, "");
+      const pinRecord = await queryOne(
+        "SELECT * FROM student_pins WHERE UPPER(REPLACE(pin, ' ', '')) = $1 AND active = 1 LIMIT 1",
+        [normalizedPin]
+      );
+      if (!pinRecord) {
+        return res.status(401).json({ error: "Invalid or already-used scratch card PIN" });
+      }
+      if (pinRecord.class_id && Number(pinRecord.class_id) !== Number((student as any).class_id)) {
+        return res.status(401).json({ error: "This PIN is not valid for this student's class" });
+      }
+      // Single-use: consume the PIN on first successful login
+      await execute("UPDATE student_pins SET active = 0 WHERE id = $1", [pinRecord.id]);
+    } else {
+      // Check password: use the student_password field, fallback to default
+      const storedPassword = (student as any).student_password || 'student123';
+      if (password !== storedPassword) {
+        return res.status(401).json({ error: "Invalid password" });
+      }
     }
 
     const token = jwt.sign(

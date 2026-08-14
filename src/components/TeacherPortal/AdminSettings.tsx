@@ -6,7 +6,8 @@ import {
   FileText, Save, BarChart3, School, BookOpen, LayoutDashboard,
   GraduationCap, Globe, Eye, EyeOff, Search, RefreshCw, Terminal,
   UserCheck, BookMarked, Palette, Image as ImageIcon, Upload, Edit2, LayoutTemplate, Languages as LanguagesIcon, Type, Ruler, Copy,
-  MousePointerClick, ExternalLink
+  MousePointerClick, ExternalLink,
+  Ticket, Megaphone, Send, Plus, KeyRound, Loader2
 } from "lucide-react";
 import { User, Session, Class, Subject, Result } from "../../types";
 import { CONTENT_FIELDS, CONTENT_DEFAULTS, normalizeImageUrl, cleanHtmlMarkup } from "../../lib/siteContent";
@@ -162,7 +163,17 @@ export default function AdminSettings({ token, user, onBack }: AdminSettingsProp
   const [users, setUsers] = useState<User[]>([]);
   const [sessions, setSessions] = useState<Session[]>([]);
   const [classes, setClasses] = useState<Class[]>([]);
-  const [activeTab, setActiveTab] = useState<"dashboard" | "users" | "students" | "classes" | "assignments" | "sessions" | "content" | "result-sheet" | "tools">("dashboard");
+  // Scratch-card PINs + Broadcast state
+  const [pins, setPins] = useState<any[]>([]);
+  const [pinCount, setPinCount] = useState(10);
+  const [pinClassId, setPinClassId] = useState<string>("");
+  const [pinLoading, setPinLoading] = useState(false);
+  const [broadcastMessage, setBroadcastMessage] = useState("");
+  const [broadcastSubject, setBroadcastSubject] = useState("Al Mustafa Academy — Announcement");
+  const [broadcastChannel, setBroadcastChannel] = useState<"sms" | "email">("sms");
+  const [broadcastClassId, setBroadcastClassId] = useState<string>("");
+  const [broadcastLoading, setBroadcastLoading] = useState(false);
+  const [activeTab, setActiveTab] = useState<"dashboard" | "users" | "students" | "classes" | "assignments" | "sessions" | "content" | "result-sheet" | "tools" | "scratch-cards" | "broadcast">("dashboard");
   const [showAddModal, setShowAddModal] = useState(false);
   const [newUser, setNewUser] = useState({ username: "", password: "", surname: "", first_name: "", middle_name: "", role: "teacher", is_admin: false, phone: "", email: "", address: "" });
   const [editingUser, setEditingUser] = useState<User | null>(null);
@@ -490,6 +501,90 @@ export default function AdminSettings({ token, user, onBack }: AdminSettingsProp
       setSessions(data.sessions || []);
     } catch (err) {
       console.error("Failed to fetch sessions:", err);
+    }
+  };
+
+  const fetchPins = async () => {
+    try {
+      const res = await fetch("/api/admin/pins", {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      const data = await res.json();
+      setPins(data.pins || []);
+    } catch (err) {
+      console.error("Failed to fetch pins:", err);
+    }
+  };
+
+  const handleGeneratePins = async () => {
+    setPinLoading(true);
+    try {
+      const res = await fetch("/api/admin/pins/generate", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ count: pinCount, class_id: pinClassId || undefined }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        setMessage({ type: "error", text: data.error || "Failed to generate PINs" });
+        setTimeout(() => setMessage(null), 3000);
+        return;
+      }
+      setMessage({ type: "success", text: data.message });
+      setTimeout(() => setMessage(null), 3000);
+      fetchPins();
+    } catch (err) {
+      setMessage({ type: "error", text: "Connection error generating PINs" });
+      setTimeout(() => setMessage(null), 3000);
+    } finally {
+      setPinLoading(false);
+    }
+  };
+
+  const handleDeactivatePin = async (id: number) => {
+    try {
+      await fetch("/api/admin/pins/deactivate", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ id }),
+      });
+      fetchPins();
+    } catch (err) {
+      console.error("Failed to deactivate pin:", err);
+    }
+  };
+
+  const handleSendBroadcast = async () => {
+    if (!broadcastMessage.trim()) {
+      setMessage({ type: "error", text: "Message is required" });
+      setTimeout(() => setMessage(null), 3000);
+      return;
+    }
+    setBroadcastLoading(true);
+    try {
+      const res = await fetch("/api/admin/broadcast", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+        body: JSON.stringify({
+          message: broadcastMessage,
+          channel: broadcastChannel,
+          subject: broadcastSubject,
+          class_id: broadcastClassId || undefined,
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        setMessage({ type: "error", text: data.error || "Broadcast failed" });
+        setTimeout(() => setMessage(null), 3000);
+        return;
+      }
+      setMessage({ type: "success", text: data.message });
+      setTimeout(() => setMessage(null), 5000);
+    } catch (err) {
+      setMessage({ type: "error", text: "Connection error sending broadcast" });
+      setTimeout(() => setMessage(null), 3000);
+    } finally {
+      setBroadcastLoading(false);
     }
   };
 
@@ -951,6 +1046,13 @@ export default function AdminSettings({ token, user, onBack }: AdminSettingsProp
       case 'result-sheet':
         fetchResultSheetConfig();
         break;
+      case 'scratch-cards':
+        fetchPins();
+        fetchClasses();
+        break;
+      case 'broadcast':
+        fetchClasses();
+        break;
       case 'tools':
         fetchStats();
         fetchServerStatus();
@@ -969,6 +1071,8 @@ export default function AdminSettings({ token, user, onBack }: AdminSettingsProp
     { id: "sessions" as const, label: "Sessions", icon: Clock },
     { id: "content" as const, label: "Content", icon: FileText },
     { id: "result-sheet" as const, label: "Result Sheet", icon: FileText },
+    { id: "scratch-cards" as const, label: "Scratch Cards", icon: Ticket },
+    { id: "broadcast" as const, label: "Broadcast", icon: Megaphone },
     { id: "tools" as const, label: "Tools", icon: Database },
   ];
 
@@ -2089,6 +2193,201 @@ export default function AdminSettings({ token, user, onBack }: AdminSettingsProp
                   Delete All Subjects
                 </button>
               </div>
+            </div>
+          </div>
+        )}
+
+        {/* ======= SCRATCH CARDS TAB ======= */}
+        {activeTab === "scratch-cards" && (
+          <div>
+            <div className="flex items-center justify-between mb-6">
+              <div>
+                <h2 className="font-serif text-xl font-bold text-primary">Scratch Card PINs</h2>
+                <p className="text-xs text-on-surface-variant mt-1">
+                  Generate single-use PINs for the student portal. Parents enter their surname + the PIN from the card.
+                </p>
+              </div>
+              <button onClick={refreshCurrentTab}
+                className="flex items-center gap-1.5 text-xs text-on-surface-variant hover:text-primary px-3 py-2 rounded-lg hover:bg-surface-container transition-colors cursor-pointer">
+                <RefreshCw className="w-3.5 h-3.5" /> Refresh
+              </button>
+            </div>
+
+            {/* Generate card */}
+            <div className="bg-white border border-primary/5 rounded-xl p-6 shadow-xs mb-6">
+              <div className="w-12 h-12 rounded-lg bg-secondary-fixed/20 flex items-center justify-center mb-4">
+                <Ticket className="w-6 h-6 text-secondary" />
+              </div>
+              <h3 className="font-serif font-bold text-primary text-base mb-1">Generate New PINs</h3>
+              <p className="text-xs text-on-surface-variant mb-4 leading-relaxed">
+                Each PIN works once. Optionally restrict a batch to one class — the card will only log in students of that class.
+              </p>
+              <div className="flex flex-wrap items-end gap-3">
+                <div>
+                  <label className="text-[10px] font-bold text-on-surface-variant uppercase tracking-wider block mb-1.5">Quantity</label>
+                  <input
+                    type="number"
+                    min={1}
+                    max={500}
+                    value={pinCount}
+                    onChange={(e) => setPinCount(Math.max(1, parseInt(e.target.value) || 1))}
+                    className="w-28 bg-surface border border-primary/20 px-3 py-2.5 text-sm rounded-lg focus:outline-none focus:border-secondary transition-all"
+                  />
+                </div>
+                <div>
+                  <label className="text-[10px] font-bold text-on-surface-variant uppercase tracking-wider block mb-1.5">Restrict to class (optional)</label>
+                  <select
+                    value={pinClassId}
+                    onChange={(e) => setPinClassId(e.target.value)}
+                    className="w-56 bg-surface border border-primary/20 px-3 py-2.5 text-sm rounded-lg focus:outline-none focus:border-secondary transition-all"
+                  >
+                    <option value="">Any class</option>
+                    {classes.map((c: any) => (
+                      <option key={c.id} value={c.id}>{c.name}</option>
+                    ))}
+                  </select>
+                </div>
+                <button onClick={handleGeneratePins} disabled={pinLoading}
+                  className="flex items-center gap-1.5 bg-primary hover:bg-primary-container text-white px-5 py-2.5 rounded-lg text-xs font-bold transition-colors disabled:opacity-50 cursor-pointer">
+                  {pinLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Plus className="w-4 h-4" />}
+                  {pinLoading ? "Generating..." : "Generate PINs"}
+                </button>
+              </div>
+              {pins.filter((p) => p.active).length === 0 && pins.length > 0 && (
+                <p className="text-[10px] text-amber-600 mt-3">All generated PINs have been used or deactivated.</p>
+              )}
+            </div>
+
+            {/* PIN list */}
+            <div className="bg-white border border-primary/5 rounded-xl shadow-xs overflow-hidden">
+              <div className="px-5 py-4 border-b border-primary/5 flex items-center justify-between">
+                <h3 className="font-serif font-bold text-primary text-sm">All PINs ({pins.length})</h3>
+                <div className="flex gap-4 text-[10px] font-bold uppercase tracking-wider text-on-surface-variant">
+                  <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-green-500 inline-block" /> Active: {pins.filter((p) => p.active).length}</span>
+                  <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-red-400 inline-block" /> Used: {pins.filter((p) => !p.active).length}</span>
+                </div>
+              </div>
+              {pins.length === 0 ? (
+                <div className="text-center py-12">
+                  <KeyRound className="w-10 h-10 text-on-surface-variant/20 mx-auto mb-2" />
+                  <p className="text-sm text-on-surface-variant">No PINs generated yet</p>
+                </div>
+              ) : (
+                <div className="divide-y divide-primary/5 max-h-[28rem] overflow-y-auto">
+                  {pins.map((p) => (
+                    <div key={p.id} className="flex items-center justify-between px-5 py-3 text-sm hover:bg-surface-container-low transition-colors">
+                      <div className="flex items-center gap-4">
+                        <span className={`font-mono font-bold tracking-wider px-2.5 py-1 rounded-lg text-xs ${p.active ? "bg-green-50 text-green-700 border border-green-200" : "bg-surface-container text-on-surface-variant/50 line-through border border-primary/5"}`}>
+                          {p.pin}
+                        </span>
+                        <span className="text-[10px] text-on-surface-variant/60">{p.class_name || "Any class"}</span>
+                      </div>
+                      <div className="flex items-center gap-3">
+                        {p.active ? (
+                          <button onClick={() => handleDeactivatePin(p.id)}
+                            className="text-[10px] text-red-600 hover:text-red-700 border border-red-200 hover:bg-red-50 px-2.5 py-1 rounded-lg transition-colors cursor-pointer">
+                            Deactivate
+                          </button>
+                        ) : (
+                          <span className="text-[10px] text-on-surface-variant/50">Used</span>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* ======= BROADCAST TAB ======= */}
+        {activeTab === "broadcast" && (
+          <div>
+            <div className="flex items-center justify-between mb-6">
+              <div>
+                <h2 className="font-serif text-xl font-bold text-primary">Notification Broadcast</h2>
+                <p className="text-xs text-on-surface-variant mt-1">
+                  Send an announcement to parents by SMS (Termii) or to staff by email. Messages cost per recipient.
+                </p>
+              </div>
+              <button onClick={refreshCurrentTab}
+                className="flex items-center gap-1.5 text-xs text-on-surface-variant hover:text-primary px-3 py-2 rounded-lg hover:bg-surface-container transition-colors cursor-pointer">
+                <RefreshCw className="w-3.5 h-3.5" /> Refresh
+              </button>
+            </div>
+
+            <div className="bg-white border border-primary/5 rounded-xl p-6 shadow-xs max-w-2xl">
+              <div className="w-12 h-12 rounded-lg bg-secondary-fixed/20 flex items-center justify-center mb-4">
+                <Megaphone className="w-6 h-6 text-secondary" />
+              </div>
+
+              <div className="mb-4">
+                <label className="text-[10px] font-bold text-on-surface-variant uppercase tracking-wider block mb-1.5">Channel</label>
+                <div className="flex gap-2">
+                  {([
+                    { id: "sms", label: "SMS to Parents", desc: "Termii · parent phone numbers" },
+                    { id: "email", label: "Email to Staff", desc: "SMTP · staff email addresses" },
+                  ] as const).map((ch) => (
+                    <button key={ch.id} onClick={() => setBroadcastChannel(ch.id)}
+                      className={`flex-1 text-left px-4 py-3 rounded-lg border text-xs transition-all cursor-pointer ${
+                        broadcastChannel === ch.id ? "border-secondary bg-secondary-fixed/10 text-primary" : "border-primary/10 bg-surface text-on-surface-variant hover:border-primary/30"
+                      }`}>
+                      <p className="font-bold">{ch.label}</p>
+                      <p className="text-[10px] mt-0.5 opacity-70">{ch.desc}</p>
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {broadcastChannel === "sms" && (
+                <div className="mb-4">
+                  <label className="text-[10px] font-bold text-on-surface-variant uppercase tracking-wider block mb-1.5">Restrict to class (optional)</label>
+                  <select
+                    value={broadcastClassId}
+                    onChange={(e) => setBroadcastClassId(e.target.value)}
+                    className="w-full bg-surface border border-primary/20 px-3 py-2.5 text-sm rounded-lg focus:outline-none focus:border-secondary transition-all"
+                  >
+                    <option value="">All classes (every parent with a phone number)</option>
+                    {classes.map((c: any) => (
+                      <option key={c.id} value={c.id}>{c.name}</option>
+                    ))}
+                  </select>
+                </div>
+              )}
+
+              {broadcastChannel === "email" && (
+                <div className="mb-4">
+                  <label className="text-[10px] font-bold text-on-surface-variant uppercase tracking-wider block mb-1.5">Subject</label>
+                  <input
+                    type="text"
+                    value={broadcastSubject}
+                    onChange={(e) => setBroadcastSubject(e.target.value)}
+                    className="w-full bg-surface border border-primary/20 px-3 py-2.5 text-sm rounded-lg focus:outline-none focus:border-secondary transition-all"
+                  />
+                </div>
+              )}
+
+              <div className="mb-4">
+                <label className="text-[10px] font-bold text-on-surface-variant uppercase tracking-wider block mb-1.5">Message</label>
+                <textarea
+                  value={broadcastMessage}
+                  onChange={(e) => setBroadcastMessage(e.target.value)}
+                  rows={5}
+                  placeholder={broadcastChannel === "sms" ? "e.g. Assalamu Alaikum parents, the 1st Term Examination runs 17–25 October. Ensure your ward is present. — Al Mustafa Academy" : "Type the announcement..."}
+                  className="w-full bg-surface border border-primary/20 px-3 py-3 text-sm rounded-lg focus:outline-none focus:border-secondary transition-all resize-y"
+                />
+                {broadcastChannel === "sms" && (
+                  <p className="text-[10px] text-on-surface-variant/60 mt-1">
+                    SMS is charged per recipient (~{Math.ceil(broadcastMessage.length / 160)} SMS credit{broadcastMessage.length > 160 ? "s" : ""} per phone for this message).
+                  </p>
+                )}
+              </div>
+
+              <button onClick={handleSendBroadcast} disabled={broadcastLoading}
+                className="flex items-center gap-1.5 bg-primary hover:bg-primary-container text-white px-5 py-2.5 rounded-lg text-xs font-bold transition-colors disabled:opacity-50 cursor-pointer">
+                {broadcastLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
+                {broadcastLoading ? "Sending..." : "Send Broadcast"}
+              </button>
             </div>
           </div>
         )}

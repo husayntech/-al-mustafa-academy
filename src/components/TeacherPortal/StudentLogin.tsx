@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { motion } from "motion/react";
-import { LogIn, School, User, Eye, EyeOff, ArrowLeft, Download, BookOpen, GraduationCap, Loader2 } from "lucide-react";
+import { LogIn, School, User, Eye, EyeOff, ArrowLeft, Download, BookOpen, GraduationCap, Loader2, Ticket, KeyRound } from "lucide-react";
 import { Result } from "../../types";
 import {
   fetchResultSheetConfig,
@@ -62,7 +62,9 @@ function calcGrade(total: number): string {
 
 export default function StudentLogin({ onBack }: StudentLoginProps) {
   const [surname, setSurname] = useState("");
+  const [loginMethod, setLoginMethod] = useState<"password" | "pin">("password");
   const [password, setPassword] = useState("student123");
+  const [pin, setPin] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
@@ -81,13 +83,19 @@ export default function StudentLogin({ onBack }: StudentLoginProps) {
       setError("Please enter your surname");
       return;
     }
+    if (loginMethod === "pin" && !pin.trim()) {
+      setError("Please enter the PIN from your scratch card");
+      return;
+    }
 
     setLoading(true);
     try {
       const res = await fetch("/api/auth/student-login", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ surname: surname.trim(), password }),
+        body: JSON.stringify(loginMethod === "pin"
+          ? { surname: surname.trim(), pin: pin.trim() }
+          : { surname: surname.trim(), password }),
       });
       const data = await res.json();
 
@@ -455,18 +463,46 @@ export default function StudentLogin({ onBack }: StudentLoginProps) {
               </div>
             </div>
 
-            <div>
-              <label className="text-[10px] font-bold text-on-surface-variant uppercase tracking-wider block mb-1.5">Password</label>
-              <div className="relative">
-                <input type={showPassword ? "text" : "password"} value={password}
-                  onChange={(e) => setPassword(e.target.value)} placeholder="Default: student123"
-                  className="w-full bg-surface border border-primary/20 pl-3 pr-10 py-3 text-sm rounded-lg focus:outline-none focus:border-secondary transition-all" />
-                <button type="button" onClick={() => setShowPassword(!showPassword)}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-on-surface-variant/50 cursor-pointer">
-                  {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+            <div className="mb-4">
+              <div className="grid grid-cols-2 gap-1.5 bg-surface-container-low rounded-lg p-1">
+                <button type="button" onClick={() => { setLoginMethod("password"); setError(""); }}
+                  className={`flex items-center justify-center gap-1.5 py-2 rounded-md text-[10px] font-bold uppercase tracking-wider transition-all cursor-pointer ${loginMethod === "password" ? "bg-white text-primary shadow" : "text-on-surface-variant hover:text-primary"}`}>
+                  <KeyRound className="w-3.5 h-3.5" /> Password
+                </button>
+                <button type="button" onClick={() => { setLoginMethod("pin"); setError(""); }}
+                  className={`flex items-center justify-center gap-1.5 py-2 rounded-md text-[10px] font-bold uppercase tracking-wider transition-all cursor-pointer ${loginMethod === "pin" ? "bg-white text-primary shadow" : "text-on-surface-variant hover:text-primary"}`}>
+                  <Ticket className="w-3.5 h-3.5" /> Scratch Card PIN
                 </button>
               </div>
             </div>
+
+            {loginMethod === "password" ? (
+              <div>
+                <label className="text-[10px] font-bold text-on-surface-variant uppercase tracking-wider block mb-1.5">Password</label>
+                <div className="relative">
+                  <input type={showPassword ? "text" : "password"} value={password}
+                    onChange={(e) => setPassword(e.target.value)} placeholder="Default: student123"
+                    className="w-full bg-surface border border-primary/20 pl-3 pr-10 py-3 text-sm rounded-lg focus:outline-none focus:border-secondary transition-all" />
+                  <button type="button" onClick={() => setShowPassword(!showPassword)}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-on-surface-variant/50 cursor-pointer">
+                    {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <div>
+                <label className="text-[10px] font-bold text-on-surface-variant uppercase tracking-wider block mb-1.5">Scratch Card PIN</label>
+                <div className="relative">
+                  <Ticket className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-on-surface-variant/50" />
+                  <input type="text" value={pin} onChange={(e) => setPin(e.target.value.toUpperCase())}
+                    placeholder="XXXX-XXXX-XXXX"
+                    className="w-full bg-surface border border-primary/20 pl-10 pr-3 py-3 text-sm rounded-lg focus:outline-none focus:border-secondary transition-all font-mono tracking-wider" />
+                </div>
+                <p className="text-[10px] text-on-surface-variant/60 mt-1.5">
+                  Scratch the card to reveal the PIN. Each PIN can be used once.
+                </p>
+              </div>
+            )}
 
             <button type="submit" disabled={loading}
               className="w-full bg-primary hover:bg-primary-container text-white py-3.5 rounded-lg font-bold text-xs uppercase tracking-widest transition-all disabled:opacity-50 cursor-pointer flex items-center justify-center gap-2">
@@ -474,7 +510,9 @@ export default function StudentLogin({ onBack }: StudentLoginProps) {
             </button>
 
             <p className="text-[10px] text-on-surface-variant/60 text-center">
-              Enter your surname and use password "student123"
+              {loginMethod === "pin"
+                ? "Enter your surname and the PIN from your scratch card"
+                : "Enter your surname and use password \"student123\""}
             </p>
           </form>
         </motion.div>
