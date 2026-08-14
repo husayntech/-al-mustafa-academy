@@ -117,25 +117,34 @@ export default function App() {
     academicYear: string;
   } | null>(null);
 
-  // Calendar / FAQ / Gallery live on the Home page — their links scroll to the
-  // matching section there instead of switching to a standalone screen.
+  // Calendar / FAQ / Gallery live on the Home page — their links take you
+  // straight there by switching home and scrolling straight to the section
+  // the moment it renders.
   const HOME_SECTION_IDS: Record<string, string> = {
     calendar: "calendar-section",
     faq: "faq-section",
     gallery: "gallery-section",
+  };
+  const scrollToSectionOnce = (id: string) => {
+    const tryScroll = () => {
+      const el = document.getElementById(id);
+      if (el) {
+        el.scrollIntoView({ behavior: "smooth", block: "start" });
+      } else {
+        setTimeout(tryScroll, 30); // retry until the section is mounted
+      }
+    };
+    tryScroll();
   };
   const handleScreenChange = (screenId: ScreenId) => {
     const sectionId = HOME_SECTION_IDS[screenId];
     if (sectionId) {
       setCurrentScreen("home");
       window.scrollTo({ top: 0 });
-      setTimeout(() => {
-        const el = document.getElementById(sectionId);
-        if (el) el.scrollIntoView({ behavior: "smooth", block: "start" });
-      }, 400);
+      scrollToSectionOnce(sectionId);
     } else {
       setCurrentScreen(screenId);
-      window.scrollTo({ top: 0, behavior: "smooth" });
+      window.scrollTo({ top: 0 });
     }
   };
 
@@ -430,20 +439,9 @@ export default function App() {
         onAdminPortal={handleOpenAdminLogin}
       />
 
-      {/* Main Screen Content — one page per public section */}
+      {/* Main Screen Content — one page per section, switched instantly */}
       <main className="flex-1 pt-16 flex flex-col">
-        <AnimatePresence mode="wait" initial={false}>
-          <motion.div
-            key={currentScreen}
-            initial={{ opacity: 0, y: 12 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -8 }}
-            transition={{ duration: 0.25 }}
-            className="flex-1 flex flex-col"
-          >
-            {renderPublicScreen()}
-          </motion.div>
-        </AnimatePresence>
+        {renderPublicScreen()}
       </main>
 
       {/* Universal Footer */}
