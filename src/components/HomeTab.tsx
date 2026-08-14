@@ -46,10 +46,34 @@ export default function HomeTab({ onScreenChange }: HomeTabProps) {
       className="w-full text-on-surface bg-background scroll-mt-16"
       id="home-section"
     >
-      {/* School Announcement News Ticker (marquee) */}
+      {/* School Announcement News Ticker (marquee) — announcement, key
+          academic-calendar dates, and contact info scrolling together */}
       {siteContent.school_announcement && (() => {
+        // Pull the important calendar dates into the ticker too, so parents
+        // see term and exam info right in the header strip.
+        const calendarItems = [
+          siteContent.calendar_term_dates
+            ? `${siteContent.calendar_term_label || "1st Term"}: ${siteContent.calendar_term_dates}`
+            : "",
+          siteContent.calendar_term_2_dates
+            ? `${siteContent.calendar_term_2_label || "2nd Term"}: ${siteContent.calendar_term_2_dates}`
+            : "",
+          siteContent.calendar_term_3_dates
+            ? `${siteContent.calendar_term_3_label || "3rd Term"}: ${siteContent.calendar_term_3_dates}`
+            : "",
+          siteContent.calendar_event_1_title && siteContent.calendar_event_1_date
+            ? `${siteContent.calendar_event_1_title}: ${siteContent.calendar_event_1_date}`
+            : "",
+          siteContent.calendar_event_2_title && siteContent.calendar_event_2_date
+            ? `${siteContent.calendar_event_2_title}: ${siteContent.calendar_event_2_date}`
+            : "",
+          siteContent.calendar_event_3_title && siteContent.calendar_event_3_date
+            ? `${siteContent.calendar_event_3_title}: ${siteContent.calendar_event_3_date}`
+            : "",
+        ].filter(Boolean);
         const tickerItems = [
           siteContent.school_announcement.trim(),
+          ...calendarItems,
           siteContent.established_tag || "Established in 2013",
           siteContent.contact_email || "almustafaacademyilorin@gmail.com",
         ].filter(Boolean);
