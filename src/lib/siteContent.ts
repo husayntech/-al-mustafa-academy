@@ -40,14 +40,20 @@ export function writeSiteSnapshot(content: Record<string, string>) {
 }
 
 /**
- * Release the first-paint gate armed by the index.html bootstrap (first visit
- * only). Called as soon as real content + styles are in place, and on fetch
- * failure so the site is never stuck hidden.
+ * Release the first-paint gate armed by the index.html bootstrap. Called as
+ * soon as real content + styles are in place, and on fetch failure so the site
+ * is never stuck hidden. Pairing data-ama-ready with the still-present
+ * data-ama-boot flips the gate open and runs the fade-in (see index.css), and
+ * the branded boot splash fades out at the same time.
  */
 export function revealApp() {
   const root = document.documentElement;
-  root.removeAttribute("data-ama-boot");
   root.setAttribute("data-ama-ready", "1");
+  const splash = document.getElementById("boot-splash");
+  if (splash) {
+    splash.classList.add("hide");
+    setTimeout(() => splash.remove(), 300);
+  }
 }
 
 export type ContentFieldType = "text" | "textarea" | "color" | "image" | "html" | "spacing";
@@ -643,6 +649,10 @@ export function useSiteContent(): Record<string, string> {
 
   useEffect(() => {
     let active = true;
+    // If we hydrated from a local snapshot, the real UI is already painted on
+    // the first React render — open the gate now and refresh content in the
+    // background, so repeat visits don't wait on the network.
+    if (readSiteSnapshot()) revealApp();
     const applyAll = (c: Record<string, string>) => {
       applyThemeColors(c);
       applyTypography(c);

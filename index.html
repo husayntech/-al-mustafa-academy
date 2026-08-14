@@ -20,12 +20,41 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Playfair+Display:ital,wght@0,400..900;1,400..900&display=swap" />
 
+    <style>
+      /* Branded boot splash — inline so it paints before any external CSS loads.
+         It covers the empty #root while the JS bundle downloads and fades out
+         only when the real content is on screen: no white frame and no flash of
+         fallback/default content, on any visit. */
+      #boot-splash {
+        position: fixed; inset: 0; z-index: 9999;
+        display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 16px;
+        background: #012d1d;
+        color: #f7d44a;
+        font-family: Georgia, "Times New Roman", serif;
+        transition: opacity 0.25s ease-out;
+      }
+      #boot-splash.hide { opacity: 0; pointer-events: none; }
+      #boot-splash .ring {
+        width: 44px; height: 44px; border-radius: 50%;
+        border: 3px solid rgba(247, 212, 74, 0.25);
+        border-top-color: #f7d44a;
+        animation: ama-boot-spin 0.9s linear infinite;
+      }
+      @keyframes ama-boot-spin { to { transform: rotate(360deg); } }
+      #boot-splash .brand { font-size: 16px; letter-spacing: 0.14em; text-transform: uppercase; opacity: 0.9; }
+      @media (prefers-reduced-motion: reduce) {
+        #boot-splash .ring { animation-duration: 3s; }
+      }
+    </style>
+
     <!--
       Blocking pre-paint bootstrap — eliminates the Flash of Unstyled/Default Content.
-      This runs synchronously BEFORE the app bundle, so the very first frame already
-      carries the last-known site content theme, typography, and Style-Editor custom
-      styles (read from a local snapshot). On a brand-new visit (no snapshot) the app
-      is held behind a tiny fade gate until real content loads (max 1.5s fallback).
+      Runs synchronously BEFORE the app bundle, so the very first frame already carries
+      the last-known site content theme, typography, and Style-Editor custom styles
+      (read from a local snapshot). First paint is always gated: repeat visits reveal
+      the snapshot content the moment React mounts; first visits reveal only when real
+      content arrives — the boot splash covers the screen either way, so fallback
+      content can never be seen.
     -->
     <script>
       (function () {
@@ -46,6 +75,10 @@
           line_height_body: "--line-height-body",
           letter_spacing_headings: "--letter-spacing-headings",
         };
+        var root = document.documentElement;
+        // Always gate the first paint. The app calls revealApp() the moment real
+        // content (or the snapshot) is on screen; the splash covers the gap.
+        root.setAttribute("data-ama-boot", "1");
         try {
           var raw = localStorage.getItem(KEY);
           if (raw) {
@@ -87,21 +120,21 @@
                   }
                 } catch (e) {}
               }
-              document.documentElement.setAttribute("data-ama-ready", "1");
-              return; // snapshot present → render immediately, zero flash
+              return; // snapshot present → React reveals as soon as it mounts
             }
           }
         } catch (e) {}
-        // First visit (or cleared storage): gate first paint until the real
-        // content + styles arrive (or 1.5s fallback so the page never stays blank).
-        document.documentElement.setAttribute("data-ama-boot", "1");
+        // Last-resort safety: if the JS bundle never loads, don't leave the page
+        // stuck behind the gate. Kept long (10s) so a slow bundle can never reveal
+        // fallback content before the real content arrives.
         setTimeout(function () {
-          document.documentElement.setAttribute("data-ama-ready", "1");
-        }, 1500);
+          root.setAttribute("data-ama-ready", "1");
+        }, 10000);
       })();
     </script>
   </head>
   <body>
+    <div id="boot-splash"><div class="ring"></div><div class="brand">Al Mustafa Academy</div></div>
     <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>
   </body>
