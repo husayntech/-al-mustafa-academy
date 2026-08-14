@@ -1,5 +1,5 @@
 import { motion } from "motion/react";
-import { useSiteContent } from "../lib/siteContent";
+import { useSiteContent, normalizeWhatsAppNumber } from "../lib/siteContent";
 
 /**
  * Floating WhatsApp Business widget (bottom-right, above the Chatbot bubble).
@@ -7,7 +7,7 @@ import { useSiteContent } from "../lib/siteContent";
  */
 export default function WhatsAppWidget() {
   const siteContent = useSiteContent();
-  const number = siteContent.admissions_whatsapp_number || "2348037525585";
+  const number = normalizeWhatsAppNumber(siteContent.admissions_whatsapp_number || "2348037525585");
   const label = siteContent.whatsapp_widget_label || "Chat with us on WhatsApp";
   const message =
     siteContent.whatsapp_widget_message ||

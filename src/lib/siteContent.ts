@@ -196,7 +196,7 @@ export const CONTENT_FIELDS: ContentField[] = [
   { key: "admissions_form_email_placeholder", label: "Form: Email Placeholder", type: "text", group: "Admissions Page" },
   { key: "admissions_form_grade_label", label: "Form: Grade Label", type: "text", group: "Admissions Page" },
   { key: "admissions_form_grade_options", label: "Form: Grade Options (one per line)", type: "textarea", group: "Admissions Page" },
-  { key: "admissions_whatsapp_number", label: "WhatsApp Number (with country code, e.g. 2348037525585)", type: "text", group: "Admissions Page" },
+  { key: "admissions_whatsapp_number", label: "WhatsApp Number (any format — 0803…, +234… or 234… all work)", type: "text", group: "Admissions Page" },
   { key: "admissions_form_message_label", label: "Form: Message Label", type: "text", group: "Admissions Page" },
   { key: "admissions_form_message_placeholder", label: "Form: Message Placeholder", type: "text", group: "Admissions Page" },
   { key: "admissions_form_submit_text", label: "Form: Submit Button Text", type: "text", group: "Admissions Page" },
@@ -802,6 +802,21 @@ export function applyTypography(content: Record<string, string>) {
  * Converts Google Drive "uc?export=view" links into a reliably-served
  * thumbnail URL so images actually display in the browser.
  */
+/**
+ * Converts any stored WhatsApp number into the exact international format
+ * wa.me needs — digits only, no "+", no spaces/dashes, no leading "0",
+ * Nigerian mobiles get the +234 country code. Fixes the "number not on
+ * WhatsApp / phone number shared via url is invalid" error that happens
+ * when the stored value has formatting like "+234...", "0803...", or spaces.
+ */
+export function normalizeWhatsAppNumber(raw: string | undefined | null): string {
+  const digits = (raw || "").replace(/\D/g, "");
+  if (!digits) return "";
+  if (digits.startsWith("0")) return "234" + digits.slice(1);
+  if (digits.length === 10) return "234" + digits; // Nigerian mobile, no country code
+  return digits;
+}
+
 export function normalizeImageUrl(url: string | undefined | null, width?: number): string {
   if (!url) return "";
   const idMatch = url.match(/drive\.google\.com\/(?:uc\?export=view&id=|file\/d\/)([\w-]+)/);

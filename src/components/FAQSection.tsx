@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { motion, AnimatePresence } from "motion/react";
 import { HelpCircle, ChevronDown, MessageCircle } from "lucide-react";
-import { useSiteContent } from "../lib/siteContent";
+import { useSiteContent, normalizeWhatsAppNumber } from "../lib/siteContent";
 import EditableText from "./EditableText";
 
 /**
@@ -130,7 +130,7 @@ export default function FAQSection() {
           <MessageCircle className="w-4 h-4 text-secondary" />
           Still have a question?{" "}
           <a
-            href={`https://wa.me/${siteContent.admissions_whatsapp_number || "2348037525585"}`}
+            href={`https://wa.me/${normalizeWhatsAppNumber(siteContent.admissions_whatsapp_number || "2348037525585")}`}
             target="_blank"
             rel="noopener noreferrer"
             className="text-primary font-semibold hover:text-secondary underline underline-offset-2"
