@@ -52,66 +52,6 @@ export default function Footer({ onScreenChange, onStudentPortal, onTeacherPorta
           </p>
         </div>
 
-        {/* Navigation Quicklinks */}
-        <nav className="flex flex-wrap justify-center gap-x-6 gap-y-2 mb-6 text-sm">
-          <button
-            onClick={() => onScreenChange("home")}
-            className="text-white/80 hover:text-secondary-fixed transition-colors font-medium active:underline decoration-secondary cursor-pointer"
-          >
-            <EditableText contentKey="nav_home_label" value={siteContent.nav_home_label || ""} fallback="Home" label="Navigation: Home Label">
-              <span dangerouslySetInnerHTML={{ __html: siteContent.nav_home_label || "Home" }} />
-            </EditableText>
-          </button>
-          <button
-            onClick={() => onScreenChange("welcome")}
-            className="text-white/80 hover:text-secondary-fixed transition-colors font-medium active:underline decoration-secondary cursor-pointer"
-          >
-            <EditableText contentKey="nav_welcome_label" value={siteContent.nav_welcome_label || ""} fallback="Welcome Message" label="Navigation: Welcome Label">
-              <span dangerouslySetInnerHTML={{ __html: siteContent.nav_welcome_label || "Welcome Message" }} />
-            </EditableText>
-          </button>
-          <button
-            onClick={() => onScreenChange("admissions")}
-            className="text-white/80 hover:text-secondary-fixed transition-colors font-medium active:underline decoration-secondary cursor-pointer"
-          >
-            <EditableText contentKey="nav_admissions_label" value={siteContent.nav_admissions_label || ""} fallback="Admissions" label="Navigation: Admissions Label">
-              <span dangerouslySetInnerHTML={{ __html: siteContent.nav_admissions_label || "Admissions" }} />
-            </EditableText>
-          </button>
-          <button
-            onClick={() => onScreenChange("calendar")}
-            className="text-white/80 hover:text-secondary-fixed transition-colors font-medium active:underline decoration-secondary cursor-pointer"
-          >
-            <EditableText contentKey="nav_calendar_label" value={siteContent.nav_calendar_label || ""} fallback="Academic Calendar" label="Navigation: Academic Calendar Label">
-              <span dangerouslySetInnerHTML={{ __html: siteContent.nav_calendar_label || "Academic Calendar" }} />
-            </EditableText>
-          </button>
-          <button
-            onClick={() => onScreenChange("curriculum")}
-            className="text-white/80 hover:text-secondary-fixed transition-colors font-medium active:underline decoration-secondary cursor-pointer"
-          >
-            <EditableText contentKey="nav_curriculum_label" value={siteContent.nav_curriculum_label || ""} fallback="Madrasah Activities" label="Navigation: Madrasah Activities Label">
-              <span dangerouslySetInnerHTML={{ __html: siteContent.nav_curriculum_label || "Madrasah Activities" }} />
-            </EditableText>
-          </button>
-          <button
-            onClick={() => onScreenChange("faq")}
-            className="text-white/80 hover:text-secondary-fixed transition-colors font-medium active:underline decoration-secondary cursor-pointer"
-          >
-            <EditableText contentKey="nav_faq_label" value={siteContent.nav_faq_label || ""} fallback="FAQs" label="Navigation: FAQs Label">
-              <span dangerouslySetInnerHTML={{ __html: siteContent.nav_faq_label || "FAQs" }} />
-            </EditableText>
-          </button>
-          <button
-            onClick={() => onScreenChange("gallery")}
-            className="text-white/80 hover:text-secondary-fixed transition-colors font-medium active:underline decoration-secondary cursor-pointer"
-          >
-            <EditableText contentKey="nav_gallery_label" value={siteContent.nav_gallery_label || ""} fallback="Gallery" label="Navigation: Gallery Label">
-              <span dangerouslySetInnerHTML={{ __html: siteContent.nav_gallery_label || "Gallery" }} />
-            </EditableText>
-          </button>
-        </nav>
-
         {/* Contact info — icons + editable phone / email / address */}
         <div className="flex flex-col items-center gap-2.5 mb-5">
           <div className="flex justify-center gap-4">
