@@ -543,7 +543,16 @@ function withQueryTimeout<T>(p: Promise<T>): Promise<T> {
   });
 }
 
+// sql.js throws "tried to bind a value of an unknown type" (and postgres.js
+// rejects) when a param is `undefined` — a common case when a route spreads a
+// request body. Normalize so an omitted field behaves like SQL NULL instead of
+// failing the whole statement.
+function normalizeParams(params: any[]): any[] {
+  return params.map((p) => (p === undefined ? null : p));
+}
+
 export async function queryAll(query: string, params: any[] = []): Promise<Record<string, any>[]> {
+  params = normalizeParams(params);
   if (USE_POSTGRES) {
     await ensurePg();
     const rows = await withQueryTimeout(sql!.unsafe(query, params));
@@ -570,6 +579,7 @@ export async function queryOne(query: string, params: any[] = []): Promise<Recor
 }
 
 export async function execute(query: string, params: any[] = []): Promise<number> {
+  params = normalizeParams(params);
   if (USE_POSTGRES) {
     await ensurePg();
     // For INSERT queries, append RETURNING id so we can return the new row id
@@ -586,13 +596,17 @@ export async function execute(query: string, params: any[] = []): Promise<number
   // Convert PostgreSQL $1, $2 placeholders to sql.js ? placeholders
   const sqliteQuery = query.replace(/\$\d+/g, "?");
   database.run(sqliteQuery, params);
-  saveDatabase();
 
+  // Read last_insert_rowid() BEFORE persisting: db.export() (inside
+  // saveDatabase) rebuilds the database image and resets the connection's
+  // last_insert_rowid to 0, which used to make every INSERT return id 0.
+  let id = 1;
   if (query.trim().toUpperCase().startsWith("INSERT")) {
     const result = database.exec("SELECT last_insert_rowid() as id");
-    return result.length > 0 ? (result[0].values[0][0] as number) : 0;
+    id = result.length > 0 ? (result[0].values[0][0] as number) : 0;
   }
-  return 1;
+  saveDatabase();
+  return id;
 }
 
 let pgEnsurePromise: Promise<void> | null = null;

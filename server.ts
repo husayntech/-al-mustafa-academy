@@ -670,6 +670,20 @@ app.put("/api/subjects/:id", authMiddleware, async (req: AuthenticatedRequest, r
   }
 });
 
+// NOTE: the literal "/all" route must be registered BEFORE "/:id" below,
+// otherwise Express matches ":id" = "all", parseInt("all") is NaN, and the
+// "delete everything" action silently deletes nothing while reporting success.
+app.delete("/api/subjects/all", authMiddleware, adminMiddleware, async (req: AuthenticatedRequest, res: Response) => {
+  try {
+    await execute("DELETE FROM results");
+    await execute("DELETE FROM subjects");
+    res.json({ message: "All subjects and their results deleted" });
+  } catch (error: any) {
+    console.error("Delete all subjects error:", error);
+    res.status(500).json({ error: "Failed to delete subjects" });
+  }
+});
+
 app.delete("/api/subjects/:id", authMiddleware, async (req: AuthenticatedRequest, res: Response) => {
   try {
     const subject = await queryOne("SELECT class_id FROM subjects WHERE id = $1", [parseInt(req.params.id)]);
@@ -707,18 +721,6 @@ app.post("/api/subjects/batch", authMiddleware, adminMiddleware, async (req: Aut
   } catch (error: any) {
     console.error("Batch subject add error:", error);
     res.status(500).json({ error: "Failed to add subjects" });
-  }
-});
-
-// Delete all subjects (admin only - global)
-app.delete("/api/subjects/all", authMiddleware, adminMiddleware, async (req: AuthenticatedRequest, res: Response) => {
-  try {
-    await execute("DELETE FROM results");
-    await execute("DELETE FROM subjects");
-    res.json({ message: "All subjects and their results deleted" });
-  } catch (error: any) {
-    console.error("Delete all subjects error:", error);
-    res.status(500).json({ error: "Failed to delete subjects" });
   }
 });
 
@@ -789,14 +791,14 @@ app.post("/api/students", authMiddleware, adminMiddleware, async (req: Authentic
 app.put("/api/students/:id", authMiddleware, async (req: AuthenticatedRequest, res: Response) => {
   try {
     const studentId = parseInt(req.params.id);
+    const existingStudent = await queryOne("SELECT class_id FROM students WHERE id = $1", [studentId]);
+    if (!existingStudent) return res.status(404).json({ error: "Student not found" });
 
     // If teacher (not admin), verify they are assigned to this student's class
     if (req.user?.role === "teacher" && !req.user?.is_admin) {
-      const student = await queryOne("SELECT class_id FROM students WHERE id = $1", [studentId]);
-      if (!student) return res.status(404).json({ error: "Student not found" });
       const assignment = await queryOne(
         "SELECT id FROM teacher_classes WHERE teacher_id = $1 AND class_id = $2",
-        [req.user.id, student.class_id]
+        [req.user.id, existingStudent.class_id]
       );
       if (!assignment) {
         return res.status(403).json({ error: "You are not assigned to this student's class" });
@@ -807,7 +809,7 @@ app.put("/api/students/:id", authMiddleware, async (req: AuthenticatedRequest, r
     const composedName = composeFullName({ first_name, middle_name, surname }, full_name);
     await execute(
       `UPDATE students SET full_name = $1, surname = $2, first_name = $3, middle_name = $4, gender = $5, date_of_birth = $6, address = $7, parent_name = $8, parent_phone = $9, passport_photo = $10, student_password = $11, class_id = $12 WHERE id = $13`,
-      [composedName, surname?.trim() || null, first_name?.trim() || null, middle_name?.trim() || null, gender || null, date_of_birth || null, address || null, parent_name || null, parent_phone || null, passport_photo || null, student_password || 'student123', class_id || undefined, studentId]
+      [composedName, surname?.trim() || null, first_name?.trim() || null, middle_name?.trim() || null, gender || null, date_of_birth || null, address || null, parent_name || null, parent_phone || null, passport_photo || null, student_password || 'student123', class_id ?? existingStudent.class_id ?? null, studentId]
     );
     res.json({ message: "Student updated successfully" });
   } catch (error: any) {
@@ -817,9 +819,24 @@ app.put("/api/students/:id", authMiddleware, async (req: AuthenticatedRequest, r
 });
 
 // Admin-only: delete student
+// Literal "/all" route is declared before "/:id" (see note in the subjects routes)
+app.delete("/api/students/all", authMiddleware, adminMiddleware, async (req: AuthenticatedRequest, res: Response) => {
+  try {
+    await execute("DELETE FROM results");
+    await execute("DELETE FROM students");
+    res.json({ message: "All students deleted" });
+  } catch (error: any) {
+    res.status(500).json({ error: "Failed to delete students" });
+  }
+});
+
 app.delete("/api/students/:id", authMiddleware, adminMiddleware, async (req: AuthenticatedRequest, res: Response) => {
   try {
-    await execute("DELETE FROM students WHERE id = $1", [parseInt(req.params.id)]);
+    const studentId = parseInt(req.params.id);
+    if (!Number.isInteger(studentId)) {
+      return res.status(404).json({ error: "Student not found" });
+    }
+    await execute("DELETE FROM students WHERE id = $1", [studentId]);
     res.json({ message: "Student deleted successfully" });
   } catch (error: any) {
     res.status(500).json({ error: "Failed to delete student" });
@@ -1009,7 +1026,8 @@ app.get("/api/students/:id/attendance", authMiddleware, async (req: Authenticate
       return res.status(403).json({ error: "Access denied" });
     }
     const summary = await queryAll(
-      `SELECT status, COUNT(*)::int as count FROM attendance WHERE student_id = $1 GROUP BY status`,
+      // CAST keeps this valid on both PostgreSQL and SQLite (::int is Postgres-only)
+      `SELECT status, CAST(COUNT(*) AS INTEGER) as count FROM attendance WHERE student_id = $1 GROUP BY status`,
       [studentId]
     );
     const records = await queryAll(
@@ -1061,7 +1079,8 @@ app.put("/api/students/:id/term-report", authMiddleware, async (req: Authenticat
     );
     if (existing) {
       await execute(
-        "UPDATE student_term_reports SET hifdh_progress = $1, behavior_remarks = $2, updated_at = NOW() WHERE id = $3",
+        // CURRENT_TIMESTAMP is valid in both PostgreSQL and SQLite (NOW() is Postgres-only)
+        "UPDATE student_term_reports SET hifdh_progress = $1, behavior_remarks = $2, updated_at = CURRENT_TIMESTAMP WHERE id = $3",
         [hifdh_progress || null, behavior_remarks || null, existing.id]
       );
     } else {
@@ -1705,17 +1724,6 @@ app.post("/api/seed/students", authMiddleware, adminMiddleware, async (req: Auth
   }
 });
 
-// Delete all students (for re-seeding) (admin only)
-app.delete("/api/students/all", authMiddleware, adminMiddleware, async (req: AuthenticatedRequest, res: Response) => {
-  try {
-    await execute("DELETE FROM results");
-    await execute("DELETE FROM students");
-    res.json({ message: "All students deleted" });
-  } catch (error: any) {
-    res.status(500).json({ error: "Failed to delete students" });
-  }
-});
-
 // Move student to another class
 app.put("/api/students/:id/class", authMiddleware, async (req: AuthenticatedRequest, res: Response) => {
   try {
@@ -1966,7 +1974,7 @@ app.get("/api/student/my-results", authMiddleware, async (req: AuthenticatedRequ
       [req.user.id]
     );
     const attendance = await queryAll(
-      `SELECT status, COUNT(*)::int as count FROM attendance WHERE student_id = $1 GROUP BY status`,
+      `SELECT status, CAST(COUNT(*) AS INTEGER) as count FROM attendance WHERE student_id = $1 GROUP BY status`,
       [req.user.id]
     );
     res.json({ results, subjects, termReports, attendance });

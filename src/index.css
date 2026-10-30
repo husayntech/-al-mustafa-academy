@@ -224,3 +224,34 @@ html[data-ama-boot="1"][data-ama-ready="1"] #root {
     @page { margin: 12mm; }
   }
 }
+
+/* ---- Printable attendance sheet ----
+ * The sheet is portalled into <body> (outside #root) as a hidden element.
+ * While `body.printing-attendance` is set, the whole app is hidden and only the
+ * sheet prints — black text on white paper, no app colours or chrome. */
+.attendance-print-sheet {
+  display: none;
+}
+
+@media print {
+  body.printing-attendance #root {
+    display: none !important;
+  }
+  body.printing-attendance .attendance-print-sheet {
+    display: block !important;
+    width: 100%;
+    max-width: none;
+    margin: 0;
+    padding: 0;
+    color: #000 !important;
+    background: #fff !important;
+  }
+  body.printing-attendance .attendance-print-sheet * {
+    color: #000 !important;
+    background: #fff !important;
+    border-color: #000 !important;
+    box-shadow: none !important;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+}

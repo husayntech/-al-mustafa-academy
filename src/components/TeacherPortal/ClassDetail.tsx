@@ -1,13 +1,40 @@
-import { useState, useEffect, ReactNode } from "react";
+import { useState, useEffect, useRef, ReactNode, CSSProperties } from "react";
+import { createPortal } from "react-dom";
 import { motion, AnimatePresence } from "motion/react";
 import {
   ArrowLeft, UserPlus, Edit2, Trash2, FileText, BookOpen,
   Plus, X, Search, Users, Copy, CheckCircle, AlertCircle,
-  BookText, Save, Move, FileSpreadsheet, Download, CalendarCheck
+  BookText, Save, Move, FileSpreadsheet, Download, CalendarCheck, Printer
 } from "lucide-react";
 import { Class, Student, Subject } from "../../types";
+import { fetchResultSheetConfig } from "../../lib/resultSheet";
+import { RESULT_SHEET_DEFAULTS } from "../../lib/resultSheetConfig";
+import { useSiteContent } from "../../lib/siteContent";
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
+
+// --- Printable attendance sheet helpers ---
+const cellStyle: CSSProperties = {
+  border: "1px solid #000",
+  padding: "6px 8px",
+  color: "#000",
+  background: "#fff",
+  verticalAlign: "middle",
+  overflowWrap: "anywhere",
+};
+
+// "2026-10-28" -> "28 October 2026" (local, no timezone shifting of the day)
+function formatSheetDate(iso: string) {
+  const [y, m, d] = (iso || "").split("-").map(Number);
+  if (!y || !m || !d) return iso || "";
+  return new Date(y, m - 1, d).toLocaleDateString("en-GB", { day: "numeric", month: "long", year: "numeric" });
+}
+
+function formatSheetDay(iso: string) {
+  const [y, m, d] = (iso || "").split("-").map(Number);
+  if (!y || !m || !d) return "";
+  return new Date(y, m - 1, d).toLocaleDateString("en-GB", { weekday: "long" });
+}
 
 interface ClassDetailProps {
   classData: Class;
@@ -52,6 +79,37 @@ export default function ClassDetail({ classData, token, userRole, onBack, onStud
   const [attendanceMap, setAttendanceMap] = useState<Record<string, string>>({});
   const [attendanceLoading, setAttendanceLoading] = useState(false);
   const [attendanceSaving, setAttendanceSaving] = useState(false);
+  // Letterhead data for the printable attendance sheet (school name, address, logo)
+  const [attendanceConfig, setAttendanceConfig] = useState<Record<string, string>>(RESULT_SHEET_DEFAULTS);
+  const siteContent = useSiteContent();
+  const attendanceSheetRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!showAttendance) return;
+    let active = true;
+    fetchResultSheetConfig().then((cfg) => {
+      if (active) setAttendanceConfig(cfg);
+    });
+    return () => {
+      active = false;
+    };
+  }, [showAttendance]);
+
+  const printAttendanceSheet = () => {
+    if (!showAttendance) setShowAttendance(true);
+    // The sheet lives outside #root (portal), so hiding #root prints it alone.
+    document.body.classList.add("printing-attendance");
+    const cleanup = () => {
+      document.body.classList.remove("printing-attendance");
+      window.removeEventListener("afterprint", cleanup);
+    };
+    window.addEventListener("afterprint", cleanup);
+    // Give the sheet a frame to lay out before the print dialog snapshots it.
+    setTimeout(() => {
+      window.print();
+      setTimeout(cleanup, 1000);
+    }, 120);
+  };
 
   useEffect(() => {
     fetchStudents();
@@ -401,6 +459,13 @@ export default function ClassDetail({ classData, token, userRole, onBack, onStud
     s.full_name.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
+  // Totals printed under the attendance register (same default the save uses)
+  const counts = { present: 0, late: 0, absent: 0 };
+  for (const s of students) {
+    const st = (attendanceMap[`${s.id}`] || "present") as keyof typeof counts;
+    if (counts[st] !== undefined) counts[st]++;
+  }
+
   if (loading) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
@@ -568,6 +633,15 @@ export default function ClassDetail({ classData, token, userRole, onBack, onStud
                     Mark all present
                   </button>
                   <button
+                    onClick={printAttendanceSheet}
+                    disabled={students.length === 0}
+                    className="flex items-center gap-1.5 text-xs border border-primary/15 text-primary hover:bg-primary hover:text-white px-4 py-2 rounded-lg transition-colors cursor-pointer disabled:opacity-50 font-semibold"
+                    title="Print the attendance sheet"
+                  >
+                    <Printer className="w-3.5 h-3.5" />
+                    Print Sheet
+                  </button>
+                  <button
                     onClick={saveAttendance}
                     disabled={attendanceSaving}
                     className="flex items-center gap-1.5 text-xs bg-primary text-white hover:bg-primary-hover px-4 py-2 rounded-lg transition-colors cursor-pointer disabled:opacity-50 font-semibold"
@@ -618,6 +692,168 @@ export default function ClassDetail({ classData, token, userRole, onBack, onStud
           </motion.div>
         )}
       </AnimatePresence>
+
+      {/* Printable attendance sheet — lives outside #root so printing shows only this
+          paper-style document (black text on white, full letterhead, no app chrome). */}
+      {showAttendance &&
+        typeof document !== "undefined" &&
+        createPortal(
+          <div
+            ref={attendanceSheetRef}
+            className="attendance-print-sheet"
+            style={{ color: "#000", background: "#fff", fontFamily: "Arial, Helvetica, sans-serif" }}
+          >
+            {/* Letterhead */}
+            <div style={{ display: "flex", alignItems: "center", gap: "16px", borderBottom: "3px double #000", paddingBottom: "12px" }}>
+              {siteContent.logo_url ? (
+                <img
+                  src={siteContent.logo_url}
+                  alt="School logo"
+                  style={{ width: "64px", height: "64px", objectFit: "contain", flexShrink: 0 }}
+                />
+              ) : null}
+              <div style={{ flex: 1, textAlign: "center", minWidth: 0 }}>
+                <div style={{ fontSize: "18px", fontWeight: 800, lineHeight: 1.3 }}>
+                  {attendanceConfig.school_name_en || RESULT_SHEET_DEFAULTS.school_name_en}
+                </div>
+                <div style={{ fontSize: "15px", fontWeight: 700, marginTop: "2px" }}>
+                  {attendanceConfig.school_name_ar || ""}
+                </div>
+                <div style={{ fontSize: "11px", marginTop: "4px" }}>
+                  {attendanceConfig.school_location || ""}
+                  {(attendanceConfig.school_location || attendanceConfig.school_contact) && " · "}
+                  {attendanceConfig.school_contact || ""}
+                </div>
+              </div>
+              <div style={{ width: "64px", flexShrink: 0 }} aria-hidden="true" />
+            </div>
+
+            {/* Title */}
+            <div
+              style={{
+                margin: "14px 0 12px",
+                border: "1px solid #000",
+                textAlign: "center",
+                padding: "8px 10px",
+                fontSize: "15px",
+                fontWeight: 800,
+                letterSpacing: "3px",
+              }}
+            >
+              ATTENDANCE SHEET
+              <div style={{ fontSize: "13px", letterSpacing: "normal", fontWeight: 700, marginTop: "2px" }}>
+                سجل الحضور
+              </div>
+            </div>
+
+            {/* Sheet meta */}
+            <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "11.5px", marginBottom: "14px", tableLayout: "fixed" }}>
+              <tbody>
+                <tr>
+                  {[
+                    ["Class", classData.name],
+                    ["Date", formatSheetDate(attendanceDate)],
+                    ["Day", formatSheetDay(attendanceDate)],
+                    ["Total Students", String(students.length)],
+                  ].map(([label, value]) => (
+                    <td key={label} style={{ border: "1px solid #000", padding: "6px 8px", verticalAlign: "top", wordWrap: "break-word" }}>
+                      <span style={{ fontWeight: 700 }}>{label}: </span>
+                      {value}
+                    </td>
+                  ))}
+                </tr>
+              </tbody>
+            </table>
+
+            {/* Register */}
+            <table
+              style={{
+                width: "100%",
+                borderCollapse: "collapse",
+                fontSize: "11.5px",
+                tableLayout: "fixed",
+                wordWrap: "break-word",
+              }}
+            >
+              <thead>
+                <tr>
+                  {[
+                    ["S/N", "7%"],
+                    ["Student's Name", "33%"],
+                    ["Class", "15%"],
+                    ["Date", "18%"],
+                    ["Status", "12%"],
+                    ["Signature", "15%"],
+                  ].map(([label, width]) => (
+                    <th
+                      key={label}
+                      style={{
+                        border: "1px solid #000",
+                        padding: "7px 6px",
+                        width,
+                        textAlign: "center",
+                        fontWeight: 700,
+                        fontSize: "11px",
+                        textTransform: "uppercase",
+                        background: "#fff",
+                        color: "#000",
+                      }}
+                    >
+                      {label}
+                    </th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {students.map((s, i) => (
+                  <tr key={s.id}>
+                    <td style={cellStyle}>{i + 1}</td>
+                    <td style={{ ...cellStyle, fontWeight: 600 }}>{s.full_name}</td>
+                    <td style={cellStyle}>{classData.name}</td>
+                    <td style={cellStyle}>{attendanceDate}</td>
+                    <td style={{ ...cellStyle, textAlign: "center", textTransform: "capitalize" }}>
+                      {attendanceMap[`${s.id}`] || "present"}
+                    </td>
+                    <td style={{ ...cellStyle, height: "30px" }} />
+                  </tr>
+                ))}
+                {students.length === 0 && (
+                  <tr>
+                    <td style={{ ...cellStyle, textAlign: "center", padding: "18px" }} colSpan={6}>
+                      No students in this class yet
+                    </td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+
+            {/* Summary */}
+            <div style={{ fontSize: "11.5px", marginTop: "10px", display: "flex", flexWrap: "wrap", gap: "18px" }}>
+              <span>
+                <strong>Total Present:</strong> {counts.present}
+              </span>
+              <span>
+                <strong>Total Late:</strong> {counts.late}
+              </span>
+              <span>
+                <strong>Total Absent:</strong> {counts.absent}
+              </span>
+              <span>
+                <strong>Class Teacher:</strong> ____________________
+              </span>
+            </div>
+
+            {/* Signatures */}
+            <div style={{ display: "flex", gap: "40px", marginTop: "44px" }}>
+              {["Class Teacher's Signature / Date", "Head of Academy's Signature / Date"].map((label) => (
+                <div key={label} style={{ flex: 1, textAlign: "center", fontSize: "11px" }}>
+                  <div style={{ borderTop: "1.5px solid #000", paddingTop: "6px" }}>{label}</div>
+                </div>
+              ))}
+            </div>
+          </div>,
+          document.body
+        )}
 
       {/* Content */}
       <div className="max-w-7xl mx-auto px-6 py-8">

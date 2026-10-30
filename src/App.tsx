@@ -83,18 +83,38 @@ export default function App() {
 
   const [showAdminLoginModal, setShowAdminLoginModal] = useState(false);
   const [token, setToken] = useState<string | null>(localStorage.getItem("token"));
-  const [user, setUser] = useState<User | null>(
-    localStorage.getItem("user") ? JSON.parse(localStorage.getItem("user")!) : null
-  );
+  // A hand-edited / truncated "user" blob used to throw here during the
+  // useState initializer, which whitescreens the whole app before React mounts.
+  const [user, setUser] = useState<User | null>(() => {
+    try {
+      const raw = localStorage.getItem("user");
+      const parsed = raw ? JSON.parse(raw) : null;
+      return parsed && parsed.id ? (parsed as User) : null;
+    } catch {
+      localStorage.removeItem("user");
+      return null;
+    }
+  });
 
   // Refresh the logged-in user's full bio (name parts, phone, email, address) on load
   useEffect(() => {
     const storedToken = localStorage.getItem("token");
     if (!storedToken) return;
     fetch("/api/auth/me", { headers: { Authorization: `Bearer ${storedToken}` } })
-      .then((res) => res.json())
+      .then((res) => {
+        // Expired / unknown token (e.g. after the database was reset) — drop the
+        // stale session instead of keeping a "logged-in" user whose every request 401s.
+        if (res.status === 401 || res.status === 403) {
+          localStorage.removeItem("token");
+          localStorage.removeItem("user");
+          setToken(null);
+          setUser(null);
+          return null;
+        }
+        return res.json();
+      })
       .then((data) => {
-        if (data.user && data.user.id) {
+        if (data && data.user && data.user.id) {
           setUser(data.user);
           try { localStorage.setItem("user", JSON.stringify(data.user)); } catch {}
         }
