@@ -7,7 +7,7 @@ const esc = (value: string): string =>
     .replace(/&/g, "&amp;")
     .replace(/</g, "&lt;")
     .replace(/>/g, "&gt;")
-    .replace(/"/g, "&quot;");
+    .replace(/\"/g, "&quot;");
 
 // Convert Western numerals to Arabic-Indic numerals
 export const toArabicIndic = (num: number): string => {
@@ -35,6 +35,18 @@ export function calculateGrade(total: number): string {
   return entry?.grade || "F";
 }
 
+export async function fetchResultSheetConfig(): Promise<Record<string, string>> {
+  try {
+    // cache: "no-store" — the admin can edit this config live; never serve stale
+    const res = await fetch("/api/result-sheet-config", { cache: "no-store" });
+    if (!res.ok) return { ...RESULT_SHEET_DEFAULTS };
+    const data = await res.json();
+    return { ...RESULT_SHEET_DEFAULTS, ...(data.config || {}) };
+  } catch {
+    return { ...RESULT_SHEET_DEFAULTS };
+  }
+}
+
 export function getGradeRemark(grade: string, config: Record<string, string>): string {
   const map: Record<string, string> = {
     A: config.grade_a || RESULT_SHEET_DEFAULTS.grade_a,
@@ -60,7 +72,7 @@ const OFFICIAL_SUBJECTS = [
   { nameArabic: "البلاغة", nameEnglish: "Rhetoric (Balaghah)" },
   { nameArabic: "القراءة العربية", nameEnglish: "Arabic Passage Reading" },
   { nameArabic: "النظم", nameEnglish: "Poem (Nazm)" },
-  { nameArabic: "الآداب الإسلامية", nameEnglish: "Islamic Moral / Ethics" },
+  { nameArabic: "الأداب الإسلامية", nameEnglish: "Islamic Moral / Ethics" },
   { nameArabic: "التاريخ الإسلامي", nameEnglish: "Islamic History" },
 ];
 
@@ -84,15 +96,13 @@ export interface ResultSheetDataInput {
   academicYear: string;
 }
 
-/**
- * Builds the scores table with:
- * - Subjects on the RIGHT side (Arabic layout)
- * - Remarks at the end (rightmost column)
- * - NO grade column
- * - Bilingual headers (English + Arabic)
- * - For term 3: cumulative scores from terms 1, 2, and 3
- */
-export function buildResultsTableHTML(config: Record<string, string>, subjects: Subject[], results: Result[], term: number): string {
+// Builds the scores table as the pasted MARKS table: 13 subjects, right-to-left.
+export function buildResultsTableHTML(
+  config: Record<string, string>,
+  subjects: Subject[],
+  results: Result[],
+  term: number
+): string {
   const resultsMap: Record<number, Result> = {};
   results.forEach((r) => {
     resultsMap[r.subject_id] = r;
@@ -100,52 +110,73 @@ export function buildResultsTableHTML(config: Record<string, string>, subjects: 
 
   const isCumulative = term === 3;
 
-  const rows = subjects
-    .map((subj) => {
-      const result = resultsMap[subj.id];
-      const test = result?.test_score ?? null;
-      const exam = result?.exam_score ?? null;
-      const total = (test ?? 0) + (exam ?? 0);
-      const remark = result?.remarks?.trim() || "";
-      const arabic = findArabicName(subj.name);
-      
-      // RTL order: Subject AR (rightmost) → Subject EN → Total → Exam → Test → Remarks (leftmost)
-      return `<tr>
-        <td style="border:1px solid #c9c4b8;padding:6px 8px;text-align:right;font-weight:600;">${arabic ? esc(arabic) : ""}</td>
-        <td style="border:1px solid #c9c4b8;padding:6px 8px;text-align:right;font-weight:600;">${esc(subj.name)}</td>
-        <td style="border:1px solid #c9c4b8;padding:6px 8px;text-align:center;font-weight:700;">${total > 0 ? `${total} (${toArabicIndic(total)})` : "-"}</td>
-        <td style="border:1px solid #c9c4b8;padding:6px 8px;text-align:center;">${exam !== null ? `${exam} (${toArabicIndic(exam)})` : "-"}</td>
-        <td style="border:1px solid #c9c4b8;padding:6px 8px;text-align:center;">${test !== null ? `${test} (${toArabicIndic(test)})` : "-"}</td>
-        <td style="border:1px solid #c9c4b8;padding:6px 8px;text-align:center;">${esc(remark)}</td>
-      </tr>`;
-    })
-    .join("");
+  const rows = subjects.map((subj) => {
+    const result = resultsMap[subj.id];
+    const test = result?.test_score ?? null;
+    const exam = result?.exam_score ?? null;
+    const total = (test ?? 0) + (exam ?? 0);
+    const remark = result?.remarks?.trim() || "";
+    const arabic = findArabicName(subj.name);
+
+    // Row: subject cell (Arabic + English) then empty graded/remark cells
+    return `<tr class="h-6">
+      <td class="px-2 py-0.5">
+        <div class="flex justify-between items-center text-[11px] font-bold">
+          <span>${esc(subj.name)}</span>
+          <span class="arabic-font text-sm">${esc(arabic)}</span>
+        </div>
+      </td>
+      <td></td><td></td><td></td>
+    </tr>`;
+  }).join("");
 
   const grandTotal = subjects.reduce((sum, s) => {
     const r = resultsMap[s.id];
     return sum + ((r?.test_score ?? 0) + (r?.exam_score ?? 0));
   }, 0);
   const maxTotal = subjects.length * 100;
-  // RTL table: columns read right-to-left
-  return `<table style="width:100%;border-collapse:collapse;font-size:12px;" dir="rtl">
+
+  return `<table class="marks-table w-full border-collapse border border-black text-[12px]">
     <thead>
-      <tr style="background:#0B6E4F;color:#fff;">
-        <th style="padding:7px 8px;border:1px solid #0B6E4F;width:15%;">المادة<br/><span style="font-size:9px;">Subject (AR)</span></th>
-        <th style="padding:7px 8px;border:1px solid #0B6E4F;width:20%;">Subject (EN)<br/><span style="font-size:9px;">المادة</span></th>
-        <th style="padding:7px 8px;border:1px solid #0B6E4F;width:14%;">Total (100)<br/><span style="font-size:9px;">المجموع</span></th>
-        <th style="padding:7px 8px;border:1px solid #0B6E4F;width:12%;">Exam (70)<br/><span style="font-size:9px;">امتحان</span></th>
-        <th style="padding:7px 8px;border:1px solid #0B6E4F;width:12%;">Test (30)<br/><span style="font-size:9px;">اختبار</span></th>
-        <th style="padding:7px 8px;border:1px solid #0B6E4F;width:18%;">Remarks<br/><span style="font-size:9px;">ملاحظات</span></th>
+      <tr class="text-center font-bold">
+        <th class="w-[18%] p-1 leading-tight align-middle" scope="col">
+          <span class="arabic-font text-[13px] block">الملاحظة</span>
+          <span class="text-[11px] uppercase tracking-wider block">REMARKS</span>
+        </th>
+        <th class="w-[14%] p-1 leading-tight align-middle" scope="col">
+          <span class="arabic-font text-[13px] block">درجة المحصول</span>
+          <span class="text-[11px] block uppercase">TOTAL SCORE</span>
+          <span class="text-[10px] font-semibold block">(Max 100)</span>
+        </th>
+        <th class="w-[14%] p-1 leading-tight align-middle" scope="col">
+          <span class="arabic-font text-[13px] block">درجة الإمتحان</span>
+          <span class="text-[11px] block uppercase">EXAM SCORE</span>
+          <span class="text-[10px] font-semibold block">(Max 70)</span>
+        </th>
+        <th class="w-[14%] p-1 leading-tight align-middle" scope="col">
+          <span class="arabic-font text-[13px] block">درجة الإختبار</span>
+          <span class="text-[11px] block uppercase">TEST SCORE</span>
+          <span class="text-[10px] font-semibold block">(Max 30)</span>
+        </th>
+        <th class="w-[40%] p-1 leading-tight align-middle" scope="col">
+          <span class="arabic-font text-[14px] block">المواد الدراسية</span>
+          <span class="text-[11px] uppercase tracking-wide block">SUBJECTS</span>
+        </th>
       </tr>
     </thead>
     <tbody>
       ${rows}
-      <tr style="background:#f5e6b8;font-weight:700;">
-        <td colspan="2" style="border:1px solid #c9c4b8;padding:7px 8px;text-align:right;">GRAND TOTAL / المجموع الكلي</td>
-        <td style="border:1px solid #c9c4b8;padding:7px 8px;text-align:center;">${grandTotal} / ${maxTotal} <span style="font-weight:400;font-size:10px;">(${toArabicIndic(grandTotal)} / ${toArabicIndic(maxTotal)})</span></td>
-        <td style="border:1px solid #c9c4b8;padding:7px 8px;text-align:center;"></td>
-        <td style="border:1px solid #c9c4b8;padding:7px 8px;text-align:center;"></td>
-        <td style="border:1px solid #c9c4b8;padding:7px 8px;text-align:center;"></td>
+      <tr class="h-7 bg-gray-50/50 font-bold">
+        <td></td>
+        <td class="text-center font-bold text-[11px]">(Max 1300)</td>
+        <td class="text-center font-bold text-[11px]">(Max 910)</td>
+        <td class="text-center font-bold text-[11px]">(Max 390)</td>
+        <td class="px-2">
+          <div class="flex justify-between items-center text-[11px]">
+            <span>TOTAL</span>
+            <span class="arabic-font text-sm">المجموع الكلي</span>
+          </div>
+        </td>
       </tr>
     </tbody>
   </table>`;
@@ -167,26 +198,29 @@ export function buildGradingScaleHTML(config: Record<string, string>): string {
       const en = parts[1] || "-";
       const ar = parts[2] || "";
       return `<tr>
-        <td style="border:1px solid #c9c4b8;padding:5px 8px;text-align:center;font-weight:700;">${g.grade}</td>
-        <td style="border:1px solid #c9c4b8;padding:5px 8px;text-align:center;">${range}</td>
-        <td style="border:1px solid #c9c4b8;padding:5px 8px;text-align:center;">${en}${ar ? ` (${ar})` : ""}</td>
+        <td class="py-0.5 px-1 font-semibold text-[11px]">
+          ${esc(en)} <span class="arabic-font text-xs">${esc(ar)}</span>
+        </td>
+        <td class="py-0.5">${range}</td>
+        <td class="py-0.5 font-bold">${g.grade}</td>
       </tr>`;
     })
     .join("");
-  return `<table style="width:100%;border-collapse:collapse;font-size:11px;margin-top:12px;" dir="rtl">
+  return `<table class="grading-table w-full border-collapse border border-black text-center text-[11px]">
     <thead>
-      <tr style="background:#D4AF37;color:#1C1C1C;">
-        <th style="padding:5px 8px;border:1px solid #D4AF37;">التقدير / Grade</th>
-        <th style="padding:5px 8px;border:1px solid #D4AF37;">النطاق / Score Range</th>
-        <th style="padding:5px 8px;border:1px solid #D4AF37;">المعنى / Interpretation</th>
+      <tr class="font-bold">
+        <th class="py-1 px-1" scope="col">
+          Interpretation / <span class="arabic-font">التقييم</span>
+        </th>
+        <th class="py-1 px-1" scope="col">Score Range</th>
+        <th class="py-1 px-1 w-10" scope="col">Grade</th>
       </tr>
     </thead>
     <tbody>${rows}</tbody>
   </table>`;
 }
 
-/**
- * Builds every placeholder token value for a given student/term.
+/** Builds every placeholder token value for a given student/term.
  * For term 3 (cumulative): averages across terms 1, 2, and 3.
  */
 export function buildResultSheetData(input: ResultSheetDataInput): Record<string, string> {
@@ -201,14 +235,14 @@ export function buildResultSheetData(input: ResultSheetDataInput): Record<string
 
   // For term 3, compute cumulative average across terms 1, 2, and 3
   let scopedResults: Result[];
-  
+
   if (term === 3) {
     // Cumulative: average of all three terms for each subject
     const allTermResults = results.filter((r) => r.term >= 1 && r.term <= 3 && (!academicYear || r.year === academicYear));
-    
+
     // Group by subject
     const subjectResults: Record<number, { testTotal: number; examTotal: number; count: number; remarks: string }> = {};
-    
+
     for (const r of allTermResults) {
       if (!subjectResults[r.subject_id]) {
         subjectResults[r.subject_id] = { testTotal: 0, examTotal: 0, count: 0, remarks: "" };
@@ -218,7 +252,7 @@ export function buildResultSheetData(input: ResultSheetDataInput): Record<string
       subjectResults[r.subject_id].count++;
       if (r.remarks) subjectResults[r.subject_id].remarks = r.remarks;
     }
-    
+
     // Create averaged results for term 3 display
     scopedResults = subjects.map((subj) => {
       const agg = subjectResults[subj.id];
@@ -255,7 +289,7 @@ export function buildResultSheetData(input: ResultSheetDataInput): Record<string
     // Normal term: scope to requested term
     scopedResults = results.filter((r) => r.term === term && (!academicYear || r.year === academicYear));
   }
-  
+
   const resultsMap: Record<number, Result> = {};
   scopedResults.forEach((r) => {
     resultsMap[r.subject_id] = r;
@@ -299,26 +333,17 @@ export function renderResultSheetTemplate(template: string, data: Record<string,
   return html;
 }
 
-/** Fetches the current result-sheet config (public read endpoint), merged with defaults. */
-export async function fetchResultSheetConfig(): Promise<Record<string, string>> {
-  try {
-    // cache: "no-store" — the admin can edit this config live; never serve stale
-    const res = await fetch("/api/result-sheet-config", { cache: "no-store" });
-    if (!res.ok) return { ...RESULT_SHEET_DEFAULTS };
-    const data = await res.json();
-    return { ...RESULT_SHEET_DEFAULTS, ...(data.config || {}) };
-  } catch {
-    return { ...RESULT_SHEET_DEFAULTS };
-  }
-}
-
 /** Renders the sheet (off-screen) and exports a multi-page PDF via html2canvas. */
 export async function renderSheetToPDF(template: string, data: Record<string, string>, filename: string): Promise<boolean> {
   let host: HTMLDivElement | null = null;
   try {
     const html = renderResultSheetTemplate(template, data);
     host = document.createElement("div");
-    host.style.cssText = "position:fixed;left:-12000px;top:0;width:794px;background:#fff;z-index:-1;";
+    // Scale the sheet to fit the viewport width, keeping the page usable on
+    // small phone screens. 1px === 1 CSS px; we cap the print canvas so that
+    // html2canvas never tries to rasterise an off-screen desktop width.
+    const targetWidth = Math.min(window.innerWidth || 320, 794);
+    host.style.cssText = `position:fixed;left:-12000px;top:0;width:${targetWidth}px;background:#fff;z-index:-1;`;
     host.innerHTML = html;
     document.body.appendChild(host);
 
@@ -328,6 +353,8 @@ export async function renderSheetToPDF(template: string, data: Record<string, st
       useCORS: true,
       backgroundColor: "#ffffff",
       logging: false,
+      width: targetWidth,
+      height: Math.round(targetWidth * 1.414),
     });
 
     const { jsPDF } = await import("jspdf");

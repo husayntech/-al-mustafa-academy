@@ -221,6 +221,45 @@ html[data-ama-boot="1"][data-ama-ready="1"] #root {
       margin: 0 !important;
       max-width: 100% !important;
     }
+    /* Keep the result table readable on narrow phone screens and when printed */
+    @media (max-width: 640px) {
+      .print-sheet table,
+      .print-sheet thead,
+      .print-sheet tbody,
+      .print-sheet tr,
+      .print-sheet td,
+      .print-sheet th {
+        display: block;
+        width: 100% !important;
+      }
+      .print-sheet thead {
+        display: none;
+      }
+      .print-sheet tbody tr {
+        display: block;
+        margin-bottom: 12px;
+      }
+      .print-sheet tbody td {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 6px 8px !important;
+        border: 1px solid #c9c4b8 !important;
+        border-top: none !important;
+        border-bottom: none !important;
+        text-align: right;
+      }
+      .print-sheet tbody td::before {
+        content: attr(data-label);
+        font-weight: 700;
+        color: #0B6E4F;
+        text-align: right;
+        flex-shrink: 0;
+      }
+      .print-sheet tbody td:last-child {
+        text-align: left;
+      }
+    }
     @page { margin: 12mm; }
   }
 }
