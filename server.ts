@@ -1494,6 +1494,27 @@ function adminMiddleware(req: AuthenticatedRequest, res: Response, next: NextFun
   next();
 }
 
+// --- Development-only: set is_admin for a user (one-time admin-flag fix) ---
+// Only enabled when ADMIN_FIX_TOKEN is set, so it stays off in production.
+app.post("/api/admin/fix-admin", authMiddleware, async (req: Request, res: Response) => {
+  if (process.env.NODE_ENV === "production") {
+    return res.status(403).json({ error: "This route is disabled in production" });
+  }
+  const token = req.headers["x-admin-fix-token"] as string | undefined;
+  if (!token || token !== process.env.ADMIN_FIX_TOKEN) {
+    return res.status(401).json({ error: "Invalid or missing admin fix token" });
+  }
+  const { userId } = req.body;
+  if (!userId) return res.status(400).json({ error: "userId is required" });
+  try {
+    await execute("UPDATE users SET is_admin = 1 WHERE id = $1", [userId]);
+    res.json({ message: "is_admin set to 1 successfully" });
+  } catch (error: any) {
+    console.error("Fix admin error:", error);
+    res.status(500).json({ error: "Failed to set is_admin" });
+  }
+});
+
 // List all users
 app.get("/api/admin/users", authMiddleware, adminMiddleware, async (req: AuthenticatedRequest, res: Response) => {
   try {
