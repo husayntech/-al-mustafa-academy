@@ -9,7 +9,7 @@ import {
   MousePointerClick, ExternalLink,
   Ticket, Megaphone, Send, Plus, KeyRound, Loader2
 } from "lucide-react";
-import { User, Session, Class, Subject, Result } from "../../types";
+import { User, Session, Class, Subject } from "../../types";
 import { CONTENT_FIELDS, CONTENT_DEFAULTS, normalizeImageUrl, cleanHtmlMarkup } from "../../lib/siteContent";
 import { getEditMode, setEditMode } from "../../lib/editMode";
 import RichTextEditor from "./RichTextEditor";
@@ -136,7 +136,6 @@ interface DashboardStats {
   totalClasses: number;
   totalStudents: number;
   totalSubjects: number;
-  totalResults: number;
   activeSessions: number;
 }
 
@@ -194,7 +193,7 @@ export default function AdminSettings({ token, user, onBack }: AdminSettingsProp
   const [savingContent, setSavingContent] = useState(false);
   const [stats, setStats] = useState<DashboardStats>({
     totalUsers: 0, totalClasses: 0, totalStudents: 0,
-    totalSubjects: 0, totalResults: 0, activeSessions: 0,
+    totalSubjects: 0, activeSessions: 0,
   });
   const [showServerStatus, setShowServerStatus] = useState(false);
   const [serverLog, setServerLog] = useState("");
@@ -326,7 +325,6 @@ export default function AdminSettings({ token, user, onBack }: AdminSettingsProp
         totalClasses: classesList.length,
         totalStudents,
         totalSubjects,
-        totalResults: 0,
         activeSessions: activeCount,
       });
     } catch (err) {
@@ -802,7 +800,7 @@ export default function AdminSettings({ token, user, onBack }: AdminSettingsProp
     setConfirmModal({
       open: true,
       title: `Delete "${student.full_name}"?`,
-      message: "This will permanently remove this student and all their results. This action cannot be undone.",
+      message: "This will permanently remove this student. This action cannot be undone.",
       onConfirm: async () => {
         try {
           const res = await fetch(`/api/students/${student.id}`, {
@@ -887,7 +885,7 @@ export default function AdminSettings({ token, user, onBack }: AdminSettingsProp
     setConfirmModal({
       open: true,
       title: "Delete ALL Students?",
-      message: "This will permanently delete ALL students across ALL classes and all their results. This action cannot be undone.",
+      message: "This will permanently delete ALL students across ALL classes. This action cannot be undone.",
       onConfirm: async () => {
         try {
           const res = await fetch("/api/students/all", {
@@ -911,7 +909,7 @@ export default function AdminSettings({ token, user, onBack }: AdminSettingsProp
     setConfirmModal({
       open: true,
       title: "Delete ALL Subjects?",
-      message: "This will permanently delete ALL subjects across ALL classes AND all student results. This action cannot be undone.",
+      message: "This will permanently delete ALL subjects across ALL classes. This action cannot be undone.",
       onConfirm: async () => {
         try {
           const res = await fetch("/api/subjects/all", {
@@ -919,7 +917,7 @@ export default function AdminSettings({ token, user, onBack }: AdminSettingsProp
             headers: { Authorization: `Bearer ${token}` },
           });
           if (res.ok) {
-            setMessage({ type: "success", text: "All subjects and results deleted" });
+            setMessage({ type: "success", text: "All subjects deleted" });
             fetchStats();
           }
         } catch {
@@ -1256,7 +1254,7 @@ export default function AdminSettings({ token, user, onBack }: AdminSettingsProp
                   <GraduationCap className="w-4 h-4 text-secondary" /> Student Portal
                 </h3>
                 <p className="text-xs text-on-surface-variant mb-3">
-                  Seed student data, manage results, and oversee student access.
+                  Seed student data and oversee student access.
                 </p>
                 <button
                   onClick={() => setActiveTab("tools")}
@@ -1931,7 +1929,7 @@ export default function AdminSettings({ token, user, onBack }: AdminSettingsProp
                 </div>
                 <h3 className="font-serif font-bold text-primary text-base mb-2">Delete All Students</h3>
                 <p className="text-xs text-on-surface-variant mb-4 leading-relaxed">
-                  Remove all students and their results. This action cannot be undone.
+                  Remove all students. This action cannot be undone.
                 </p>
                 <button
                   onClick={handleDeleteAllStudents}
@@ -1949,7 +1947,7 @@ export default function AdminSettings({ token, user, onBack }: AdminSettingsProp
                 </div>
                 <h3 className="font-serif font-bold text-primary text-base mb-2">Delete All Subjects</h3>
                 <p className="text-xs text-on-surface-variant mb-4 leading-relaxed">
-                  Remove all subjects across all classes AND all student results. This action cannot be undone.
+                  Remove all subjects across all classes. This action cannot be undone.
                 </p>
                 <button
                   onClick={handleDeleteAllSubjects}

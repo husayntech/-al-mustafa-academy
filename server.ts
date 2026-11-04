@@ -674,9 +674,8 @@ app.put("/api/subjects/:id", authMiddleware, async (req: AuthenticatedRequest, r
 // "delete everything" action silently deletes nothing while reporting success.
 app.delete("/api/subjects/all", authMiddleware, adminMiddleware, async (req: AuthenticatedRequest, res: Response) => {
   try {
-    await execute("DELETE FROM results");
     await execute("DELETE FROM subjects");
-    res.json({ message: "All subjects and their results deleted" });
+    res.json({ message: "All subjects deleted" });
   } catch (error: any) {
     console.error("Delete all subjects error:", error);
     res.status(500).json({ error: "Failed to delete subjects" });
@@ -737,14 +736,9 @@ app.delete("/api/classes/:classId/subjects/all", authMiddleware, async (req: Aut
         return res.status(403).json({ error: "You are not assigned to this class" });
       }
     }
-    // Delete results for students in this class
-    await execute(
-      "DELETE FROM results WHERE student_id IN (SELECT id FROM students WHERE class_id = $1)",
-      [classId]
-    );
     // Delete subjects for this class
     await execute("DELETE FROM subjects WHERE class_id = $1", [classId]);
-    res.json({ message: "All subjects and results for this class deleted" });
+    res.json({ message: "All subjects for this class deleted" });
   } catch (error: any) {
     console.error("Delete class subjects error:", error);
     res.status(500).json({ error: "Failed to delete subjects" });
@@ -759,7 +753,7 @@ app.get("/api/classes/:classId/students", authMiddleware, async (req: Authentica
       return res.status(403).json({ error: "You are not assigned to this class" });
     }
     const students = await queryAll(
-      `SELECT s.*, (SELECT COUNT(*) FROM results r WHERE r.student_id = s.id) as result_count FROM students s WHERE s.class_id = $1 ORDER BY s.full_name ASC`,
+      `SELECT s.* FROM students s WHERE s.class_id = $1 ORDER BY s.full_name ASC`,
       [classId]
     );
     res.json({ students });
@@ -821,7 +815,6 @@ app.put("/api/students/:id", authMiddleware, async (req: AuthenticatedRequest, r
 // Literal "/all" route is declared before "/:id" (see note in the subjects routes)
 app.delete("/api/students/all", authMiddleware, adminMiddleware, async (req: AuthenticatedRequest, res: Response) => {
   try {
-    await execute("DELETE FROM results");
     await execute("DELETE FROM students");
     res.json({ message: "All students deleted" });
   } catch (error: any) {
@@ -839,122 +832,6 @@ app.delete("/api/students/:id", authMiddleware, adminMiddleware, async (req: Aut
     res.json({ message: "Student deleted successfully" });
   } catch (error: any) {
     res.status(500).json({ error: "Failed to delete student" });
-  }
-});
-
-// --- Result Routes ---
-app.get("/api/students/:studentId/results", authMiddleware, async (req: AuthenticatedRequest, res: Response) => {
-  try {
-    const student = await queryOne("SELECT class_id FROM students WHERE id = $1", [parseInt(req.params.studentId)]);
-    if (!student) return res.status(404).json({ error: "Student not found" });
-    if (!(await hasClassAccess(req.user, student.class_id))) {
-      return res.status(403).json({ error: "You are not assigned to this student's class" });
-    }
-    const results = await queryAll(
-      `SELECT r.*, sub.name as subject_name, sub.book_name 
-       FROM results r 
-       JOIN subjects sub ON r.subject_id = sub.id 
-       WHERE r.student_id = $1 
-       ORDER BY r.term ASC, sub.name ASC`,
-      [parseInt(req.params.studentId)]
-    );
-    res.json({ results });
-  } catch (error: any) {
-    res.status(500).json({ error: "Failed to fetch results" });
-  }
-});
-
-app.post("/api/results", authMiddleware, async (req: AuthenticatedRequest, res: Response) => {
-  try {
-    const { student_id, subject_id, term, year, test_score, exam_score, ca1_score, ca2_score, ca3_score, remarks } = req.body;
-
-    // Teachers can only save results for students in their assigned classes
-    const student = await queryOne("SELECT class_id FROM students WHERE id = $1", [student_id]);
-    if (!student) return res.status(404).json({ error: "Student not found" });
-    if (!(await hasClassAccess(req.user, student.class_id))) {
-      return res.status(403).json({ error: "You are not assigned to this student's class" });
-    }
-
-    // Check if result already exists
-    const existing = await queryOne(
-      "SELECT id FROM results WHERE student_id = $1 AND subject_id = $2 AND term = $3 AND year = $4",
-      [student_id, subject_id, term, year]
-    );
-
-    const ts = test_score !== undefined && test_score !== null && test_score !== '' ? parseFloat(test_score) : null;
-    const es = exam_score !== undefined && exam_score !== null && exam_score !== '' ? parseFloat(exam_score) : null;
-    const ca1 = ca1_score !== undefined && ca1_score !== null && ca1_score !== '' ? parseFloat(ca1_score) : null;
-    const ca2 = ca2_score !== undefined && ca2_score !== null && ca2_score !== '' ? parseFloat(ca2_score) : null;
-    const ca3 = ca3_score !== undefined && ca3_score !== null && ca3_score !== '' ? parseFloat(ca3_score) : null;
-
-    if (existing) {
-      await execute(
-        "UPDATE results SET test_score = $1, exam_score = $2, ca1_score = $3, ca2_score = $4, ca3_score = $5, remarks = $6 WHERE id = $7",
-        [ts, es, ca1, ca2, ca3, remarks || null, existing.id]
-      );
-      res.json({ id: existing.id, message: "Result updated successfully" });
-    } else {
-      const id = await execute(
-        "INSERT INTO results (student_id, subject_id, term, year, test_score, exam_score, ca1_score, ca2_score, ca3_score, remarks) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)",
-        [student_id, subject_id, term, year, ts, es, ca1, ca2, ca3, remarks || null]
-      );
-      res.json({ id, message: "Result saved successfully" });
-    }
-  } catch (error: any) {
-    console.error("Result save error:", error);
-    res.status(500).json({ error: "Failed to save result" });
-  }
-});
-
-// Bulk save results
-app.post("/api/results/bulk", authMiddleware, async (req: AuthenticatedRequest, res: Response) => {
-  try {
-    const { results } = req.body;
-    if (!Array.isArray(results)) {
-      return res.status(400).json({ error: "Results array is required" });
-    }
-
-    // Teachers can only bulk-save results for students in their assigned classes
-    if (req.user?.role === "teacher" && !req.user?.is_admin) {
-      const studentIds = [...new Set(results.map((r: any) => r.student_id))];
-      for (const sid of studentIds) {
-        const st = await queryOne("SELECT class_id FROM students WHERE id = $1", [sid]);
-        if (!st) return res.status(404).json({ error: "Student not found" });
-        if (!(await hasClassAccess(req.user, st.class_id))) {
-          return res.status(403).json({ error: "You are not assigned to this student's class" });
-        }
-      }
-    }
-
-    for (const r of results) {
-      const { student_id, subject_id, term, year, test_score, exam_score, ca1_score, ca2_score, ca3_score, remarks } = r;
-      const ts = test_score !== undefined && test_score !== null && test_score !== '' ? parseFloat(test_score) : null;
-      const es = exam_score !== undefined && exam_score !== null && exam_score !== '' ? parseFloat(exam_score) : null;
-      const ca1 = ca1_score !== undefined && ca1_score !== null && ca1_score !== '' ? parseFloat(ca1_score) : null;
-      const ca2 = ca2_score !== undefined && ca2_score !== null && ca2_score !== '' ? parseFloat(ca2_score) : null;
-      const ca3 = ca3_score !== undefined && ca3_score !== null && ca3_score !== '' ? parseFloat(ca3_score) : null;
-      const existing = await queryOne(
-        "SELECT id FROM results WHERE student_id = $1 AND subject_id = $2 AND term = $3 AND year = $4",
-        [student_id, subject_id, term, year]
-      );
-
-      if (existing) {
-        await execute(
-          "UPDATE results SET test_score = $1, exam_score = $2, ca1_score = $3, ca2_score = $4, ca3_score = $5, remarks = $6 WHERE id = $7",
-          [ts, es, ca1, ca2, ca3, remarks || null, existing.id]
-        );
-      } else {
-        await execute(
-          "INSERT INTO results (student_id, subject_id, term, year, test_score, exam_score, ca1_score, ca2_score, ca3_score, remarks) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)",
-          [student_id, subject_id, term, year, ts, es, ca1, ca2, ca3, remarks || null]
-        );
-      }
-    }
-
-    res.json({ message: `${results.length} results saved successfully` });
-  } catch (error: any) {
-    console.error("Bulk result save error:", error);
-    res.status(500).json({ error: "Failed to save results" });
   }
 });
 
@@ -1734,53 +1611,6 @@ app.put("/api/students/:id/class", authMiddleware, async (req: AuthenticatedRequ
   }
 });
 
-// Export class data as CSV
-app.get("/api/classes/:classId/export/csv", authMiddleware, async (req: AuthenticatedRequest, res: Response) => {
-  try {
-    const classId = parseInt(req.params.classId);
-    if (!(await hasClassAccess(req.user, classId))) {
-      return res.status(403).json({ error: "You are not assigned to this class" });
-    }
-    const classInfo = await queryOne("SELECT name FROM classes WHERE id = $1", [classId]);
-    const subjects = await queryAll("SELECT * FROM subjects WHERE class_id = $1 ORDER BY id", [classId]);
-    const students = await queryAll("SELECT * FROM students WHERE class_id = $1 ORDER BY full_name ASC", [classId]);
-
-    let csv = `Class,${classInfo?.name || "Unknown"}\n`;
-    csv += `Total Students,${students.length}\n`;
-    csv += `Subjects,"${subjects.map((s: any) => s.name).join(", ")}"\n\n`;
-
-    csv += "Student Name";
-    const termLabels = ["T1", "T2", "T3"];
-    for (const subj of subjects) {
-      for (const tl of termLabels) {
-        csv += `,"${(subj as any).name} ${tl} (Test/30)","${(subj as any).name} ${tl} (Exam/70)","${(subj as any).name} ${tl} (Total/100)","${(subj as any).name} ${tl} (Remarks)"`;
-      }
-    }
-    csv += "\n";
-
-    const allTerms = [1, 2, 3];
-    for (const student of students) {
-      csv += `"${(student as any).full_name}"`;
-      for (const subj of subjects) {
-        for (const term of allTerms) {
-          const result = await queryOne(
-            "SELECT test_score, exam_score, total_score, remarks FROM results WHERE student_id = $1 AND subject_id = $2 AND term = $3",
-            [(student as any).id, (subj as any).id, term]
-          );
-          csv += `,${result?.test_score ?? ""},${result?.exam_score ?? ""},${result?.total_score ?? ""},${result?.remarks ?? ""}`;
-        }
-      }
-      csv += "\n";
-    }
-
-    res.setHeader("Content-Type", "text/csv");
-    res.setHeader("Content-Disposition", `attachment; filename="${classInfo?.name || "class"}_results.csv"`);
-    res.send(csv);
-  } catch (error: any) {
-    res.status(500).json({ error: "Failed to export data" });
-  }
-});
-
 // Teacher login (last name + class name)
 app.post("/api/auth/teacher-login", async (req: Request, res: Response) => {
   try {
@@ -1943,21 +1773,12 @@ app.post("/api/auth/student-login", async (req: Request, res: Response) => {
   }
 });
 
-// Get student results (for student portal)
-app.get("/api/student/my-results", authMiddleware, async (req: AuthenticatedRequest, res: Response) => {
+// Student portal overview (term reports + attendance)
+app.get("/api/student/overview", authMiddleware, async (req: AuthenticatedRequest, res: Response) => {
   try {
     if (req.user?.type !== "student") {
       return res.status(403).json({ error: "Student access required" });
     }
-    const results = await queryAll(
-      `SELECT r.*, sub.name as subject_name, sub.book_name 
-       FROM results r 
-       JOIN subjects sub ON r.subject_id = sub.id 
-       WHERE r.student_id = $1 
-       ORDER BY r.term ASC, sub.name ASC`,
-      [req.user.id]
-    );
-    const subjects = await queryAll("SELECT * FROM subjects WHERE class_id = $1 ORDER BY id", [req.user.class_id]);
     const termReports = await queryAll(
       "SELECT * FROM student_term_reports WHERE student_id = $1 ORDER BY term ASC",
       [req.user.id]
@@ -1966,9 +1787,9 @@ app.get("/api/student/my-results", authMiddleware, async (req: AuthenticatedRequ
       `SELECT status, CAST(COUNT(*) AS INTEGER) as count FROM attendance WHERE student_id = $1 GROUP BY status`,
       [req.user.id]
     );
-    res.json({ results, subjects, termReports, attendance });
+    res.json({ termReports, attendance });
   } catch (error: any) {
-    res.status(500).json({ error: "Failed to fetch results" });
+    res.status(500).json({ error: "Failed to fetch student overview" });
   }
 });
 

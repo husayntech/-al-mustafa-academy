@@ -1,6 +1,6 @@
 import { motion } from "motion/react";
 import {
-  School, LogIn, BookOpen, Users, FileText, Download,
+  School, LogIn, BookOpen, Users, FileText,
   Calendar, Shield, CheckCircle, ArrowRight, Clock
 } from "lucide-react";
 
@@ -23,18 +23,13 @@ export default function TeacherLandingPage({ onLogin, onBack }: TeacherLandingPa
     },
     {
       icon: FileText,
-      title: "Termly Results Entry",
-      desc: "Enter percentage scores and letter grades for 3 terms",
-    },
-    {
-      icon: Download,
-      title: "Download Result Sheets",
-      desc: "Generate and download professional PDF result sheets",
+      title: "Term Reports",
+      desc: "Record Qur'an hifdh progress and behaviour remarks each term",
     },
     {
       icon: Calendar,
-      title: "Academic Year Tracking",
-      desc: "Track progress across the full academic year",
+      title: "Attendance Tracking",
+      desc: "Mark and review daily attendance for every class",
     },
     {
       icon: Clock,
@@ -71,8 +66,8 @@ export default function TeacherLandingPage({ onLogin, onBack }: TeacherLandingPa
               Teacher Portal
             </h1>
             <p className="text-lg text-white/80 max-w-xl mb-8 leading-relaxed">
-              A comprehensive platform for managing student data, recording termly results,
-              tracking academic progress, and generating result sheets — all in one place.
+              A comprehensive platform for managing student data, tracking attendance,
+              and recording term reports — all in one place.
             </p>
             <motion.button
               initial={{ scale: 0.95 }}

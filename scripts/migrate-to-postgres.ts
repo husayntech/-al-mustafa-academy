@@ -23,18 +23,16 @@ if (!DATABASE_URL) {
   process.exit(1);
 }  // Tables in dependency order. Columns are matched dynamically: only columns
   // present in both the local table and the Postgres table are inserted, and
-  // generated columns (e.g. results.total_score) are skipped automatically.
+  // generated columns are skipped automatically.
   const TABLES: { name: string }[] = [
     { name: "classes" },
     { name: "users" },
     { name: "subjects" },
     { name: "students" },
-    { name: "results" },
     { name: "sessions" },
     { name: "password_resets" },
     { name: "site_content" },
     { name: "teacher_classes" },
-    { name: "result_sheet_config" },
   ];
 
   // Foreign keys: table -> { localCol: parentTable }. Rows whose parent is
@@ -42,7 +40,6 @@ if (!DATABASE_URL) {
   const FKS: Record<string, Record<string, string>> = {
     subjects: { class_id: "classes" },
     students: { class_id: "classes" },
-    results: { student_id: "students", subject_id: "subjects" },
     sessions: { user_id: "users" },
     password_resets: { user_id: "users" },
     teacher_classes: { teacher_id: "users", class_id: "classes" },

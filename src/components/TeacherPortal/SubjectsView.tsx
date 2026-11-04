@@ -35,7 +35,7 @@ export default function SubjectsView({ classData, token, onBack }: SubjectsViewP
     setConfirmModal({
       open: true,
       title: "Delete All Subjects?",
-      message: `This will permanently delete ALL ${subjects.length} subjects in ${classData.name} and all student results for this class. This action cannot be undone.`,
+      message: `This will permanently delete ALL ${subjects.length} subjects in ${classData.name}. This action cannot be undone.`,
       onConfirm: async () => {
         try {
           const res = await fetch(`/api/classes/${classData.id}/subjects/all`, {
@@ -174,7 +174,7 @@ export default function SubjectsView({ classData, token, onBack }: SubjectsViewP
     setConfirmModal({
       open: true,
       title: `Delete "${subject.name}"?`,
-      message: `This will permanently remove the subject "${subject.name}" and all related student results. This action cannot be undone.`,
+      message: `This will permanently remove the subject "${subject.name}". This action cannot be undone.`,
       onConfirm: async () => {
         try {
           const res = await fetch(`/api/subjects/${subject.id}`, {

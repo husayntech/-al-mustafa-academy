@@ -227,21 +227,6 @@ export const POSTGRES_SCHEMA_SQL = `
       student_password TEXT DEFAULT 'student123',
       created_at TIMESTAMPTZ DEFAULT NOW()
     );
-    CREATE TABLE IF NOT EXISTS public.results (
-      id SERIAL PRIMARY KEY,
-      student_id INTEGER NOT NULL REFERENCES public.students(id) ON DELETE CASCADE,
-      subject_id INTEGER NOT NULL REFERENCES public.subjects(id) ON DELETE CASCADE,
-      term INTEGER NOT NULL CHECK (term IN (1, 2, 3)),
-      year TEXT NOT NULL,
-      test_score DOUBLE PRECISION CHECK (test_score IS NULL OR (test_score >= 0 AND test_score <= 30)),
-      exam_score DOUBLE PRECISION CHECK (exam_score IS NULL OR (exam_score >= 0 AND exam_score <= 70)),
-      ca1_score DOUBLE PRECISION CHECK (ca1_score IS NULL OR (ca1_score >= 0 AND ca1_score <= 10)),
-      ca2_score DOUBLE PRECISION CHECK (ca2_score IS NULL OR (ca2_score >= 0 AND ca2_score <= 10)),
-      ca3_score DOUBLE PRECISION CHECK (ca3_score IS NULL OR (ca3_score >= 0 AND ca3_score <= 10)),
-      total_score DOUBLE PRECISION GENERATED ALWAYS AS (COALESCE(test_score, 0) + COALESCE(exam_score, 0)) STORED,
-      remarks TEXT,
-      created_at TIMESTAMPTZ DEFAULT NOW()
-    );
     CREATE TABLE IF NOT EXISTS public.attendance (
       id SERIAL PRIMARY KEY,
       class_id INTEGER NOT NULL REFERENCES public.classes(id) ON DELETE CASCADE,
@@ -337,9 +322,6 @@ const POSTGRES_UPGRADE_SQL = `
   );
   ALTER TABLE public.student_pins ADD COLUMN IF NOT EXISTS class_id INTEGER REFERENCES public.classes(id) ON DELETE SET NULL;
   ALTER TABLE public.student_pins ALTER COLUMN student_id DROP NOT NULL;
-  ALTER TABLE public.results ADD COLUMN IF NOT EXISTS ca1_score DOUBLE PRECISION;
-  ALTER TABLE public.results ADD COLUMN IF NOT EXISTS ca2_score DOUBLE PRECISION;
-  ALTER TABLE public.results ADD COLUMN IF NOT EXISTS ca3_score DOUBLE PRECISION;
 `;
 
 async function ensureTableUpgrades() {
@@ -705,24 +687,6 @@ function ensureSchema(database: SqlJsDatabase) {
   `);
 
   database.run(`
-    CREATE TABLE IF NOT EXISTS results (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      student_id INTEGER NOT NULL REFERENCES students(id) ON DELETE CASCADE,
-      subject_id INTEGER NOT NULL REFERENCES subjects(id) ON DELETE CASCADE,
-      term INTEGER NOT NULL CHECK (term IN (1, 2, 3)),
-      year TEXT NOT NULL,
-      test_score REAL CHECK (test_score IS NULL OR (test_score >= 0 AND test_score <= 30)),
-      exam_score REAL CHECK (exam_score IS NULL OR (exam_score >= 0 AND exam_score <= 70)),
-      ca1_score REAL CHECK (ca1_score IS NULL OR (ca1_score >= 0 AND ca1_score <= 10)),
-      ca2_score REAL CHECK (ca2_score IS NULL OR (ca2_score >= 0 AND ca2_score <= 10)),
-      ca3_score REAL CHECK (ca3_score IS NULL OR (ca3_score >= 0 AND ca3_score <= 10)),
-      total_score REAL GENERATED ALWAYS AS (COALESCE(test_score, 0) + COALESCE(exam_score, 0)) STORED,
-      remarks TEXT,
-      created_at DATETIME DEFAULT CURRENT_TIMESTAMP
-    )
-  `);
-
-  database.run(`
     CREATE TABLE IF NOT EXISTS attendance (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       class_id INTEGER NOT NULL REFERENCES classes(id) ON DELETE CASCADE,
@@ -820,9 +784,6 @@ function ensureSchema(database: SqlJsDatabase) {
   try { database.run(`ALTER TABLE users ADD COLUMN phone TEXT`); } catch {}
   try { database.run(`ALTER TABLE users ADD COLUMN email TEXT`); } catch {}
   try { database.run(`ALTER TABLE users ADD COLUMN address TEXT`); } catch {}
-  try { database.run(`ALTER TABLE results ADD COLUMN ca1_score REAL`); } catch {}
-  try { database.run(`ALTER TABLE results ADD COLUMN ca2_score REAL`); } catch {}
-  try { database.run(`ALTER TABLE results ADD COLUMN ca3_score REAL`); } catch {}
 
   saveDatabase();
 }

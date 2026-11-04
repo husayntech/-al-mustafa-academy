@@ -1,7 +1,7 @@
 import { lazy, Suspense, useEffect, useState } from "react";
 import { motion, AnimatePresence } from "motion/react";
 import { ArrowUp, GraduationCap } from "lucide-react";
-import { ScreenId, User, Student, Class } from "./types";
+import { ScreenId, User, Class } from "./types";
 import { useSiteContent } from "./lib/siteContent";
 import { applyCustomStyles } from "./lib/customStyles";
 import { useEditMode } from "./lib/editMode";
@@ -19,7 +19,7 @@ import WhatsAppWidget from "./components/WhatsAppWidget";
 
 // Portal screens, the chatbot, and the admin edit-mode tools are lazy-loaded so
 // the public landing page ships a small bundle — the heavy JS (Gemini SDK,
-// jsPDF/html2canvas, admin/portal screens) only downloads when actually used.
+// admin/portal screens) only downloads when actually used.
 const Chatbot = lazy(() => import("./components/Chatbot"));
 const ContentInspector = lazy(() => import("./components/ContentInspector"));
 const SpacingGuide = lazy(() => import("./components/SpacingGuide"));
@@ -28,7 +28,6 @@ const StudentLogin = lazy(() => import("./components/TeacherPortal/StudentLogin"
 const TeacherLandingPage = lazy(() => import("./components/TeacherPortal/TeacherLandingPage"));
 const TeacherDashboard = lazy(() => import("./components/TeacherPortal/TeacherDashboard"));
 const ClassDetail = lazy(() => import("./components/TeacherPortal/ClassDetail"));
-const StudentResultsForm = lazy(() => import("./components/TeacherPortal/StudentResultsForm"));
 const SubjectsView = lazy(() => import("./components/TeacherPortal/SubjectsView"));
 const AdminSettings = lazy(() => import("./components/TeacherPortal/AdminSettings"));
 const AdminLoginPage = lazy(() => import("./components/TeacherPortal/AdminLoginPage"));
@@ -121,7 +120,6 @@ export default function App() {
       .catch(() => {});
   }, []);
   const [selectedClass, setSelectedClass] = useState<Class | null>(null);
-  const [selectedStudent, setSelectedStudent] = useState<Student | null>(null);
   const [showSubjects, setShowSubjects] = useState(false);
   const [showAdminSettings, setShowAdminSettings] = useState(false);
 
@@ -202,7 +200,6 @@ export default function App() {
     setToken(null);
     setUser(null);
     setSelectedClass(null);
-    setSelectedStudent(null);
     setShowSubjects(false);
     setCurrentScreen("home");
   };
@@ -215,7 +212,6 @@ export default function App() {
       const data = await res.json();
       const cls = (data.classes || []).find((c: Class) => c.id === classId);
       setSelectedClass(cls || null);
-      setSelectedStudent(null);
       setShowSubjects(false);
     } catch (err) {
       console.error("Failed to fetch class:", err);
@@ -224,22 +220,15 @@ export default function App() {
 
   const handleBackToDashboard = () => {
     setSelectedClass(null);
-    setSelectedStudent(null);
     setShowSubjects(false);
   };
 
-  const handleStudentResults = (student: Student) => {
-    setSelectedStudent(student);
-  };
-
   const handleBackToClass = () => {
-    setSelectedStudent(null);
     setShowSubjects(false);
   };
 
   const handleShowSubjects = () => {
     setShowSubjects(true);
-    setSelectedStudent(null);
   };
 
   const handleLogoutFromPortal = () => {
@@ -354,20 +343,6 @@ export default function App() {
       );
     }
 
-    // Show student results form
-    if (selectedClass && selectedStudent) {
-      return (
-        <Suspense fallback={<PageLoading />}>
-          <StudentResultsForm
-            student={selectedStudent}
-            className={selectedClass.name}
-            token={token}
-            onBack={handleBackToClass}
-          />
-        </Suspense>
-      );
-    }
-
     // Show class detail
     if (selectedClass) {
       return (
@@ -377,7 +352,6 @@ export default function App() {
             token={token}
             userRole={user?.role}
             onBack={handleBackToDashboard}
-            onStudentResults={handleStudentResults}
             onSubjects={handleShowSubjects}
           />
         </Suspense>
