@@ -1,7 +1,7 @@
 import { lazy, Suspense, useEffect, useState } from "react";
 import { motion, AnimatePresence } from "motion/react";
 import { ArrowUp, GraduationCap } from "lucide-react";
-import { ScreenId, User, Student, Class, Subject, Result } from "./types";
+import { ScreenId, User, Student, Class } from "./types";
 import { useSiteContent } from "./lib/siteContent";
 import { applyCustomStyles } from "./lib/customStyles";
 import { useEditMode } from "./lib/editMode";
@@ -29,7 +29,6 @@ const TeacherLandingPage = lazy(() => import("./components/TeacherPortal/Teacher
 const TeacherDashboard = lazy(() => import("./components/TeacherPortal/TeacherDashboard"));
 const ClassDetail = lazy(() => import("./components/TeacherPortal/ClassDetail"));
 const StudentResultsForm = lazy(() => import("./components/TeacherPortal/StudentResultsForm"));
-const StudentResultPage = lazy(() => import("./components/TeacherPortal/StudentResultPage"));
 const SubjectsView = lazy(() => import("./components/TeacherPortal/SubjectsView"));
 const AdminSettings = lazy(() => import("./components/TeacherPortal/AdminSettings"));
 const AdminLoginPage = lazy(() => import("./components/TeacherPortal/AdminLoginPage"));
@@ -125,13 +124,6 @@ export default function App() {
   const [selectedStudent, setSelectedStudent] = useState<Student | null>(null);
   const [showSubjects, setShowSubjects] = useState(false);
   const [showAdminSettings, setShowAdminSettings] = useState(false);
-  const [showResultPage, setShowResultPage] = useState(false);
-  const [resultPageData, setResultPageData] = useState<{
-    subjects: Subject[];
-    results: Result[];
-    term: number;
-    academicYear: string;
-  } | null>(null);
 
   // Calendar / FAQ / Gallery live on the Home page — their links take you
   // straight there by switching home and scrolling straight to the section
@@ -243,18 +235,6 @@ export default function App() {
   const handleBackToClass = () => {
     setSelectedStudent(null);
     setShowSubjects(false);
-    setShowResultPage(false);
-    setResultPageData(null);
-  };
-
-  const handleShowResultPage = (subjects: Subject[], results: Result[], term: number, academicYear: string) => {
-    setResultPageData({ subjects, results, term, academicYear });
-    setShowResultPage(true);
-  };
-
-  const handleBackToResultsForm = () => {
-    setShowResultPage(false);
-    setResultPageData(null);
   };
 
   const handleShowSubjects = () => {
@@ -374,24 +354,6 @@ export default function App() {
       );
     }
 
-    // Show student result page (formatted sheet)
-    if (selectedClass && selectedStudent && showResultPage && resultPageData) {
-      return (
-        <Suspense fallback={<PageLoading />}>
-          <StudentResultPage
-            student={selectedStudent}
-            className={selectedClass.name}
-            classNameArabic={selectedClass.name_arabic}
-            subjects={resultPageData.subjects}
-            results={resultPageData.results}
-            term={resultPageData.term}
-            academicYear={resultPageData.academicYear}
-            onBack={handleBackToResultsForm}
-          />
-        </Suspense>
-      );
-    }
-
     // Show student results form
     if (selectedClass && selectedStudent) {
       return (
@@ -401,7 +363,6 @@ export default function App() {
             className={selectedClass.name}
             token={token}
             onBack={handleBackToClass}
-            onViewResult={handleShowResultPage}
           />
         </Suspense>
       );

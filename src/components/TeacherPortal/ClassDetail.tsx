@@ -7,9 +7,16 @@ import {
   BookText, Save, Move, FileSpreadsheet, Download, CalendarCheck, Printer
 } from "lucide-react";
 import { Class, Student, Subject } from "../../types";
-import { fetchResultSheetConfig } from "../../lib/resultSheet";
-import { RESULT_SHEET_DEFAULTS } from "../../lib/resultSheetConfig";
 import { useSiteContent } from "../../lib/siteContent";
+
+// Letterhead details printed on the attendance sheet
+const SCHOOL_LETTERHEAD = {
+  school_name_en: "AL-MUSTAFA ACADEMY FOR QUR'AN MEMORIZATION & ISLAMIC STUDIES",
+  school_name_ar: "مدرسة المصطفى لتحفيظ القرآن والدراسات الإسلامية",
+  school_location: "ILORIN, NIGERIA",
+  school_contact:
+    "Tel: 08037525855 | Address: I/C Khaleel-ur-Rahman Group of Schools, 25, Sabo-Line Road, Opposite Saw-Mill, Ilorin",
+};
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
 
@@ -79,21 +86,8 @@ export default function ClassDetail({ classData, token, userRole, onBack, onStud
   const [attendanceMap, setAttendanceMap] = useState<Record<string, string>>({});
   const [attendanceLoading, setAttendanceLoading] = useState(false);
   const [attendanceSaving, setAttendanceSaving] = useState(false);
-  // Letterhead data for the printable attendance sheet (school name, address, logo)
-  const [attendanceConfig, setAttendanceConfig] = useState<Record<string, string>>(RESULT_SHEET_DEFAULTS);
   const siteContent = useSiteContent();
   const attendanceSheetRef = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    if (!showAttendance) return;
-    let active = true;
-    fetchResultSheetConfig().then((cfg) => {
-      if (active) setAttendanceConfig(cfg);
-    });
-    return () => {
-      active = false;
-    };
-  }, [showAttendance]);
 
   const printAttendanceSheet = () => {
     if (!showAttendance) setShowAttendance(true);
@@ -714,15 +708,15 @@ export default function ClassDetail({ classData, token, userRole, onBack, onStud
               ) : null}
               <div style={{ flex: 1, textAlign: "center", minWidth: 0 }}>
                 <div style={{ fontSize: "18px", fontWeight: 800, lineHeight: 1.3 }}>
-                  {attendanceConfig.school_name_en || RESULT_SHEET_DEFAULTS.school_name_en}
+                  {SCHOOL_LETTERHEAD.school_name_en}
                 </div>
                 <div style={{ fontSize: "15px", fontWeight: 700, marginTop: "2px" }}>
-                  {attendanceConfig.school_name_ar || ""}
+                  {SCHOOL_LETTERHEAD.school_name_ar}
                 </div>
                 <div style={{ fontSize: "11px", marginTop: "4px" }}>
-                  {attendanceConfig.school_location || ""}
-                  {(attendanceConfig.school_location || attendanceConfig.school_contact) && " · "}
-                  {attendanceConfig.school_contact || ""}
+                  {SCHOOL_LETTERHEAD.school_location}
+                  {" · "}
+                  {SCHOOL_LETTERHEAD.school_contact}
                 </div>
               </div>
               <div style={{ width: "64px", flexShrink: 0 }} aria-hidden="true" />

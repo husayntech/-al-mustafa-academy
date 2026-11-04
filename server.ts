@@ -7,7 +7,6 @@ import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
 import nodemailer from "nodemailer";
 import { initDatabase, queryAll, queryOne, execute } from "./db.js";
-import { RESULT_SHEET_DEFAULTS } from "./src/lib/resultSheetConfig.js";
 import { cleanHtmlMarkup } from "./src/lib/cleanHtml.js";
 import { fileURLToPath } from "url";
 import os from "os";
@@ -1659,54 +1658,6 @@ app.put("/api/admin/classes/:id", authMiddleware, adminMiddleware, async (req: A
     res.json({ message: "Class updated successfully" });
   } catch (error: any) {
     res.status(500).json({ error: "Failed to update class" });
-  }
-});
-
-// --- Admin Result Sheet Config ---
-app.get("/api/admin/result-sheet-config", authMiddleware, adminMiddleware, async (req: AuthenticatedRequest, res: Response) => {
-  try {
-    const rows = await queryAll("SELECT config_key, config_value FROM result_sheet_config");
-    const config: Record<string, string> = {};
-    for (const r of rows) {
-      config[r.config_key as string] = r.config_value as string;
-    }
-    res.json({ config });
-  } catch (error: any) {
-    res.status(500).json({ error: "Failed to fetch config" });
-  }
-});
-
-app.put("/api/admin/result-sheet-config", authMiddleware, adminMiddleware, async (req: AuthenticatedRequest, res: Response) => {
-  try {
-    const { updates } = req.body;
-    if (!updates || typeof updates !== "object") {
-      return res.status(400).json({ error: "Updates object is required" });
-    }
-    for (const [key, value] of Object.entries(updates)) {
-      const existing = await queryOne("SELECT id FROM result_sheet_config WHERE config_key = $1", [key]);
-      if (existing) {
-        await execute("UPDATE result_sheet_config SET config_value = $1 WHERE config_key = $2", [value as string, key]);
-      } else {
-        await execute("INSERT INTO result_sheet_config (config_key, config_value) VALUES ($1, $2)", [key, value as string]);
-      }
-    }
-    res.json({ message: "Config updated successfully" });
-  } catch (error: any) {
-    res.status(500).json({ error: "Failed to update config" });
-  }
-});
-
-// Public result-sheet config read (used by the result sheet renderer on both portals)
-app.get("/api/result-sheet-config", async (req: Request, res: Response) => {
-  try {
-    const rows = await queryAll("SELECT config_key, config_value FROM result_sheet_config");
-    const config: Record<string, string> = { ...RESULT_SHEET_DEFAULTS };
-    for (const r of rows) {
-      config[r.config_key as string] = r.config_value as string;
-    }
-    res.json({ config });
-  } catch (error: any) {
-    res.status(500).json({ error: "Failed to fetch config" });
   }
 });
 

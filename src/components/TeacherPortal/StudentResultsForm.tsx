@@ -1,23 +1,16 @@
 import { useState, useEffect } from "react";
 import { motion } from "motion/react";
 import {
-  ArrowLeft, Save, Download, CheckCircle, AlertCircle,
-  FileText, GraduationCap, Printer, Loader2, BookOpen
+  ArrowLeft, Save, CheckCircle, AlertCircle,
+  FileText, GraduationCap, BookOpen
 } from "lucide-react";
 import { Student, Subject, Result } from "../../types";
-import {
-  fetchResultSheetConfig,
-  buildResultSheetData,
-  renderSheetToPDF,
-} from "../../lib/resultSheet";
-import { RESULT_SHEET_DEFAULTS } from "../../lib/resultSheetConfig";
 
 interface StudentResultsFormProps {
   student: Student;
   className: string;
   token: string;
   onBack: () => void;
-  onViewResult: (subjects: Subject[], results: Result[], term: number, academicYear: string) => void;
 }
 
 const TERMS = [
@@ -42,13 +35,12 @@ function calculateGrade(total: number): string {
   return entry?.grade || "F";
 }
 
-export default function StudentResultsForm({ student, className, token, onBack, onViewResult }: StudentResultsFormProps) {
+export default function StudentResultsForm({ student, className, token, onBack }: StudentResultsFormProps) {
   const [subjects, setSubjects] = useState<Subject[]>([]);
   const [savedResults, setSavedResults] = useState<Record<string, Result>>({});
   const [selectedTerm, setSelectedTerm] = useState(1);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
-  const [exporting, setExporting] = useState(false);
   const [success, setSuccess] = useState(false);
   const [error, setError] = useState("");
 
@@ -207,34 +199,6 @@ export default function StudentResultsForm({ student, className, token, onBack, 
     return subjects.length * 100;
   };
 
-  const handleViewResult = () => {
-    // Build results array from form data
-    const resultsData: Result[] = subjects.map((subj) => {
-      const formData = formMap[`${subj.id}`] || { ca1: "", ca2: "", ca3: "", test: "", exam: "", remarks: "" };
-      const test = formData.test ? parseFloat(formData.test) : null;
-      const exam = formData.exam ? parseFloat(formData.exam) : null;
-      const total = (test || 0) + (exam || 0);
-      return {
-        id: 0,
-        student_id: student.id,
-        subject_id: subj.id,
-        term: selectedTerm,
-        year: ACADEMIC_YEAR,
-        test_score: test,
-        exam_score: exam,
-        ca1_score: formData.ca1 ? parseFloat(formData.ca1) : null,
-        ca2_score: formData.ca2 ? parseFloat(formData.ca2) : null,
-        ca3_score: formData.ca3 ? parseFloat(formData.ca3) : null,
-        total_score: total > 0 ? total : null,
-        remarks: formData.remarks || null,
-        created_at: new Date().toISOString(),
-        subject_name: subj.name,
-        book_name: subj.book_name,
-      };
-    });
-    onViewResult(subjects, resultsData, selectedTerm, ACADEMIC_YEAR);
-  };
-
   const handleSaveAll = async () => {
     setSaving(true);
     setError("");
@@ -283,60 +247,6 @@ export default function StudentResultsForm({ student, className, token, onBack, 
     }
   };
 
-  const handleDownloadPDF = async () => {
-    setExporting(true);
-    setError("");
-    try {
-      const config = await fetchResultSheetConfig();
-      const resultsData: Result[] = subjects.map((subj) => {
-        const formData = formMap[`${subj.id}`] || { ca1: "", ca2: "", ca3: "", test: "", exam: "", remarks: "" };
-        const test = formData.test ? parseFloat(formData.test) : null;
-        const exam = formData.exam ? parseFloat(formData.exam) : null;
-        const total = (test || 0) + (exam || 0);
-        return {
-          id: 0,
-          student_id: student.id,
-          subject_id: subj.id,
-          term: selectedTerm,
-          year: ACADEMIC_YEAR,
-          test_score: test,
-          exam_score: exam,
-          ca1_score: formData.ca1 ? parseFloat(formData.ca1) : null,
-          ca2_score: formData.ca2 ? parseFloat(formData.ca2) : null,
-          ca3_score: formData.ca3 ? parseFloat(formData.ca3) : null,
-          total_score: total > 0 ? total : null,
-          remarks: formData.remarks || null,
-          created_at: new Date().toISOString(),
-          subject_name: subj.name,
-          book_name: subj.book_name,
-        };
-      });
-
-      const data = buildResultSheetData({
-        config,
-        studentName: student.full_name,
-        className,
-        subjects,
-        results: resultsData,
-        term: selectedTerm,
-        academicYear: ACADEMIC_YEAR,
-      });
-
-      const ok = await renderSheetToPDF(
-        config.result_sheet_template || RESULT_SHEET_DEFAULTS.result_sheet_template,
-        data,
-        `${student.full_name.replace(/\s+/g, "_")}_Term${selectedTerm}_Results.pdf`
-      );
-      if (!ok) {
-        setError("Could not generate the PDF. Please try the Result Sheet view and print instead.");
-      }
-    } catch {
-      setError("Could not generate the PDF. Please try the Result Sheet view and print instead.");
-    } finally {
-      setExporting(false);
-    }
-  };
-
   if (loading) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
@@ -367,21 +277,6 @@ export default function StudentResultsForm({ student, className, token, onBack, 
             </div>
           </div>
           <div className="flex items-center gap-2">
-            <button
-              onClick={handleViewResult}
-              className="flex items-center gap-1.5 text-xs bg-white/10 hover:bg-white/20 px-3 py-2 rounded-lg transition-colors cursor-pointer"
-            >
-              <FileText className="w-4 h-4 text-secondary-fixed" />
-              <span className="hidden sm:inline">Result Sheet</span>
-            </button>
-            <button
-              onClick={handleDownloadPDF}
-              disabled={exporting}
-              className="flex items-center gap-1.5 text-xs bg-white/10 hover:bg-white/20 px-3 py-2 rounded-lg transition-colors cursor-pointer disabled:opacity-50"
-            >
-              {exporting ? <Loader2 className="w-4 h-4 animate-spin text-secondary-fixed" /> : <Download className="w-4 h-4 text-secondary-fixed" />}
-              <span className="hidden sm:inline">{exporting ? "Preparing…" : "PDF"}</span>
-            </button>
             <button
               onClick={handleSaveAll}
               disabled={saving}
@@ -676,21 +571,6 @@ export default function StudentResultsForm({ student, className, token, onBack, 
             className="flex-1 border border-primary/20 text-on-surface-variant py-3 rounded-lg text-xs font-semibold cursor-pointer hover:bg-surface-container transition-colors"
           >
             Back to Class
-          </button>
-          <button
-            onClick={handleViewResult}
-            className="flex-1 bg-secondary-fixed/10 text-primary border border-secondary/20 py-3 rounded-lg text-xs font-semibold cursor-pointer hover:bg-secondary-fixed/20 transition-colors flex items-center justify-center gap-1.5"
-          >
-            <FileText className="w-4 h-4" />
-            View Result Sheet
-          </button>
-          <button
-            onClick={handleDownloadPDF}
-            disabled={exporting}
-            className="flex-1 bg-primary/5 text-primary border border-primary/10 py-3 rounded-lg text-xs font-semibold cursor-pointer hover:bg-primary/10 transition-colors flex items-center justify-center gap-1.5 disabled:opacity-50"
-          >
-            <Printer className="w-4 h-4" />
-            {exporting ? "Preparing…" : "Download PDF"}
           </button>
           <button
             onClick={handleSaveAll}

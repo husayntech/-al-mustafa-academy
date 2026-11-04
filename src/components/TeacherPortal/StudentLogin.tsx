@@ -1,13 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { motion } from "motion/react";
-import { LogIn, School, User, Eye, EyeOff, ArrowLeft, Download, BookOpen, GraduationCap, Loader2 } from "lucide-react";
-import { Result } from "../../types";
-import {
-  fetchResultSheetConfig,
-  buildResultSheetData,
-  renderSheetToPDF,
-} from "../../lib/resultSheet";
-import { RESULT_SHEET_DEFAULTS } from "../../lib/resultSheetConfig";
+import { LogIn, School, User, Eye, EyeOff, ArrowLeft, BookOpen, GraduationCap } from "lucide-react";
 import { normalizeImageUrl } from "../../lib/siteContent";
 
 interface StudentData {
@@ -66,11 +59,9 @@ export default function StudentLogin({ onBack }: StudentLoginProps) {
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
-  const [exporting, setExporting] = useState(false);
   const [token, setToken] = useState<string | null>(null);
   const [student, setStudent] = useState<StudentData | null>(null);
   const [results, setResults] = useState<StudentResult[]>([]);
-  const [subjects, setSubjects] = useState<Subject[]>([]);
   const [selectedTerm, setSelectedTerm] = useState(1);
 
   const handleLogin = async (e: React.FormEvent) => {
@@ -116,7 +107,6 @@ export default function StudentLogin({ onBack }: StudentLoginProps) {
       });
       const data = await res.json();
       setResults(data.results || []);
-      setSubjects(data.subjects || []);
       setTermReports(data.termReports || []);
       setAttendanceSummary(data.attendance || []);
     } catch (err) {
@@ -128,7 +118,6 @@ export default function StudentLogin({ onBack }: StudentLoginProps) {
     setToken(null);
     setStudent(null);
     setResults([]);
-    setSubjects([]);
     setSurname("");
   };
 
@@ -146,55 +135,6 @@ export default function StudentLogin({ onBack }: StudentLoginProps) {
     if (maxTotal === 0) return "-";
     const avg = Math.round((total / maxTotal) * 100);
     return calcGrade(avg);
-  };
-
-  const handleDownloadPDF = async () => {
-    if (!student) return;
-    setExporting(true);
-    try {
-      const config = await fetchResultSheetConfig();
-      const termResults = getTermResults();
-      const resultsData: Result[] = termResults.map((r) => ({
-        id: r.id,
-        student_id: student.id,
-        subject_id: r.subject_id || 0,
-        term: selectedTerm,
-        year: r.year || "",
-        test_score: r.test_score,
-        exam_score: r.exam_score,
-        total_score: r.total_score,
-        remarks: r.remarks,
-        created_at: "",
-        subject_name: r.subject_name,
-        book_name: "",
-      }));
-
-      const data = buildResultSheetData({
-        config,
-        studentName: student.full_name,
-        className: student.class_name,
-        subjects: subjects.map((s) => ({
-          id: s.id,
-          class_id: student.class_id,
-          name: s.name,
-          book_name: "",
-          book_author: "",
-        })),
-        results: resultsData,
-        term: selectedTerm,
-        academicYear: "",
-      });
-
-      await renderSheetToPDF(
-        config.result_sheet_template || RESULT_SHEET_DEFAULTS.result_sheet_template,
-        data,
-        `${student.full_name.replace(/\s+/g, "_")}_Term${selectedTerm}_Results.pdf`
-      );
-    } catch (err) {
-      console.error("PDF generation failed:", err);
-    } finally {
-      setExporting(false);
-    }
   };
 
   // Logged in view
@@ -413,11 +353,6 @@ export default function StudentLogin({ onBack }: StudentLoginProps) {
                 );
               })()}
 
-              <button onClick={handleDownloadPDF} disabled={exporting}
-                className="mt-4 flex items-center gap-1.5 text-xs bg-primary text-white px-4 py-2.5 rounded-lg font-semibold hover:bg-primary-container transition-colors cursor-pointer ml-auto disabled:opacity-50">
-                {exporting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Download className="w-4 h-4" />}
-                {exporting ? "Preparing…" : "Download PDF"}
-              </button>
             </div>
           </div>
         </div>

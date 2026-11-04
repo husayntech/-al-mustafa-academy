@@ -299,11 +299,6 @@ export const POSTGRES_SCHEMA_SQL = `
       class_id INTEGER NOT NULL REFERENCES public.classes(id) ON DELETE CASCADE,
       UNIQUE(teacher_id, class_id)
     );
-    CREATE TABLE IF NOT EXISTS public.result_sheet_config (
-      id SERIAL PRIMARY KEY,
-      config_key TEXT UNIQUE NOT NULL,
-      config_value TEXT NOT NULL DEFAULT ''
-    );
 `;
 
 // Targeted upgrades applied even when the core schema fast-path is taken (existing
@@ -803,14 +798,6 @@ function ensureSchema(database: SqlJsDatabase) {
       teacher_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
       class_id INTEGER NOT NULL REFERENCES classes(id) ON DELETE CASCADE,
       UNIQUE(teacher_id, class_id)
-    )
-  `);
-
-  database.run(`
-    CREATE TABLE IF NOT EXISTS result_sheet_config (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      config_key TEXT UNIQUE NOT NULL,
-      config_value TEXT NOT NULL DEFAULT ''
     )
   `);
 
