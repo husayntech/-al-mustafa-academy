@@ -118,15 +118,29 @@ export function buildResultsTableHTML(
     const remark = result?.remarks?.trim() || "";
     const arabic = findArabicName(subj.name);
 
-    // Row: subject cell (Arabic + English) then empty graded/remark cells
+    // Row: remarks cell (arabic + english), then total, exam, test scores,
+    // then subject name cell.
     return `<tr class="h-6">
+      <td class="px-2 py-0.5">
+        <div class="flex justify-between items-center text-[11px] font-bold">
+          <span>${esc(remark)}</span>
+        </div>
+      </td>
+      <td class="text-center px-2 py-0.5">
+        ${total > 0 ? `${total} (${toArabicIndic(total)})` : "-"}
+      </td>
+      <td class="text-center px-2 py-0.5">
+        ${exam !== null ? `${exam} (${toArabicIndic(exam)})` : "-"}
+      </td>
+      <td class="text-center px-2 py-0.5">
+        ${test !== null ? `${test} (${toArabicIndic(test)})` : "-"}
+      </td>
       <td class="px-2 py-0.5">
         <div class="flex justify-between items-center text-[11px] font-bold">
           <span>${esc(subj.name)}</span>
           <span class="arabic-font text-sm">${esc(arabic)}</span>
         </div>
       </td>
-      <td></td><td></td><td></td>
     </tr>`;
   }).join("");
 
@@ -134,7 +148,9 @@ export function buildResultsTableHTML(
     const r = resultsMap[s.id];
     return sum + ((r?.test_score ?? 0) + (r?.exam_score ?? 0));
   }, 0);
-  const maxTotal = subjects.length * 100;
+  const maxTestTotal = subjects.length * 30;
+  const maxExamTotal = subjects.length * 70;
+  const maxTotalTotal = subjects.length * 100;
 
   return `<table class="marks-table w-full border-collapse border border-black text-[12px]">
     <thead>
@@ -168,9 +184,9 @@ export function buildResultsTableHTML(
       ${rows}
       <tr class="h-7 bg-gray-50/50 font-bold">
         <td></td>
-        <td class="text-center font-bold text-[11px]">(Max 1300)</td>
-        <td class="text-center font-bold text-[11px]">(Max 910)</td>
-        <td class="text-center font-bold text-[11px]">(Max 390)</td>
+        <td class="text-center font-bold text-[11px]">(Max ${maxTotalTotal})</td>
+        <td class="text-center font-bold text-[11px]">(Max ${maxExamTotal})</td>
+        <td class="text-center font-bold text-[11px]">(Max ${maxTestTotal})</td>
         <td class="px-2">
           <div class="flex justify-between items-center text-[11px]">
             <span>TOTAL</span>
