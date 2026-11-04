@@ -1578,18 +1578,35 @@ app.put("/api/admin/users/:id", authMiddleware, adminMiddleware, async (req: Aut
     const { full_name, surname, first_name, middle_name, username, role, is_admin, phone, email, address, password } = req.body;
     const composedName = composeFullName({ first_name, middle_name, surname }, full_name);
     const userId = parseInt(req.params.id);
+    const paramNames = [
+      'full_name', 'surname', 'first_name', 'middle_name', 'role', 'is_admin', 'phone', 'email', 'address'
+    ];
+    const values = [
+      composedName,
+      surname?.trim() || null,
+      first_name?.trim() || null,
+      middle_name?.trim() || null,
+      role,
+      is_admin ? 1 : 0,
+      phone || null,
+      email || null,
+      address || null,
+    ];
+    if (username) {
+      values.push(username);
+      paramNames.push('username');
+    }
     if (password) {
       const passwordHash = bcrypt.hashSync(password, 10);
-      await execute(
-        "UPDATE users SET full_name = $1, surname = $2, first_name = $3, middle_name = $4, username = $5, role = $6, is_admin = $7, phone = $8, email = $9, address = $10, password_hash = $11 WHERE id = $12",
-        [composedName, surname?.trim() || null, first_name?.trim() || null, middle_name?.trim() || null, username, role, is_admin ? 1 : 0, phone || null, email || null, address || null, passwordHash, userId]
-      );
-    } else {
-      await execute(
-        "UPDATE users SET full_name = $1, surname = $2, first_name = $3, middle_name = $4, username = $5, role = $6, is_admin = $7, phone = $8, email = $9, address = $10 WHERE id = $11",
-        [composedName, surname?.trim() || null, first_name?.trim() || null, middle_name?.trim() || null, username, role, is_admin ? 1 : 0, phone || null, email || null, address || null, userId]
-      );
+      values.push(passwordHash);
+      paramNames.push('password_hash');
     }
+    values.push(userId);
+    const setClauses = paramNames.map((col, i) => `${col} = $${i + 1}`).join(', ');
+    await execute(
+      `UPDATE users SET ${setClauses} WHERE id = $${values.length}`,
+      values
+    );
     res.json({ message: "User updated successfully" });
   } catch (error: any) {
     res.status(500).json({ error: "Failed to update user" });
