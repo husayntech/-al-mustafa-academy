@@ -1,7 +1,8 @@
 import React, { useState } from "react";
 import { motion } from "motion/react";
-import { LogIn, User, Eye, EyeOff, ArrowLeft, BookOpen, GraduationCap } from "lucide-react";
+import { LogIn, User, Eye, EyeOff, ArrowLeft, BookOpen, GraduationCap, FileText, Printer } from "lucide-react";
 import { normalizeImageUrl } from "../../lib/siteContent";
+import ReportSheet from "./ReportSheet";
 
 interface StudentData {
   id: number;
@@ -31,6 +32,7 @@ export default function StudentLogin({ onBack }: StudentLoginProps) {
   const [loading, setLoading] = useState(false);
   const [token, setToken] = useState<string | null>(null);
   const [student, setStudent] = useState<StudentData | null>(null);
+  const [showReportSheet, setShowReportSheet] = useState(false);
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -87,6 +89,17 @@ export default function StudentLogin({ onBack }: StudentLoginProps) {
 
   // Logged in view
   if (token && student) {
+    if (showReportSheet) {
+      return (
+        <ReportSheet
+          studentId={student.id}
+          token={token}
+          mode="view"
+          onBack={() => setShowReportSheet(false)}
+        />
+      );
+    }
+
     return (
       <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="min-h-screen bg-background">
         <div className="bg-primary text-white px-6 py-4">
@@ -179,6 +192,23 @@ export default function StudentLogin({ onBack }: StudentLoginProps) {
             <div className="p-5">
               <h3 className="font-serif text-base font-bold text-primary mb-3">Attendance & Reports</h3>
 
+              {/* Studies Report Sheet */}
+              <button
+                onClick={() => setShowReportSheet(true)}
+                className="w-full flex items-center justify-between gap-3 bg-secondary-fixed/15 hover:bg-secondary-fixed/25 border border-secondary/20 rounded-lg px-4 py-3 transition-colors cursor-pointer mb-2"
+              >
+                <span className="flex items-center gap-3 text-left">
+                  <FileText className="w-5 h-5 text-secondary shrink-0" />
+                  <span>
+                    <span className="block text-xs font-bold text-primary">Studies Report Sheet</span>
+                    <span className="block text-[10px] text-on-surface-variant">
+                      View and print your term result sheet (كشف الدرجات)
+                    </span>
+                  </span>
+                </span>
+                <Printer className="w-4 h-4 text-secondary shrink-0" />
+              </button>
+
               {/* Attendance Summary */}
               {attendanceSummary.length > 0 && (
                 <div className="mt-5 grid grid-cols-3 gap-2">
@@ -238,7 +268,7 @@ export default function StudentLogin({ onBack }: StudentLoginProps) {
           <div className="bg-primary p-6 text-center">
             <GraduationCap className="w-10 h-10 text-secondary-fixed mx-auto mb-2" />
             <h1 className="font-serif text-xl font-bold text-white">Student Portal</h1>
-            <p className="text-white/70 text-xs mt-1">View your profile, attendance and term reports</p>
+            <p className="text-white/70 text-xs mt-1">View your profile, attendance, report sheet and term reports</p>
           </div>
 
           <form onSubmit={handleLogin} className="p-6 space-y-4">

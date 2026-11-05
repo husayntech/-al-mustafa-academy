@@ -15,6 +15,7 @@ import { getEditMode, setEditMode } from "../../lib/editMode";
 import RichTextEditor from "./RichTextEditor";
 import ConfirmModal from "./ConfirmModal";
 import FontPicker from "./FontPicker";
+import ReportSheet from "./ReportSheet";
 
 const PAGE_GROUP_MAP: Record<string, string[]> = {
   home: ["Text & Announcements", "Header & Footer", "Colors & Theme", "Typography & Styling", "Images", "Contact", "Section Spacing"],
@@ -203,6 +204,7 @@ export default function AdminSettings({ token, user, onBack }: AdminSettingsProp
   const [showAssignModal, setShowAssignModal] = useState(false);
   const [assignForm, setAssignForm] = useState({ teacher_id: 0, class_ids: [] as number[] });
   const [allStudents, setAllStudents] = useState<any[]>([]);
+  const [reportStudent, setReportStudent] = useState<any>(null);
   const [editingClass, setEditingClass] = useState<Class | null>(null);
   const [classForm, setClassForm] = useState({ name: "", name_arabic: "", display_order: 0 });
   const [showStudentModal, setShowStudentModal] = useState(false);
@@ -1060,6 +1062,17 @@ export default function AdminSettings({ token, user, onBack }: AdminSettingsProp
     { id: "tools" as const, label: "Tools", icon: Database },
   ];
 
+  if (reportStudent) {
+    return (
+      <ReportSheet
+        studentId={reportStudent.id}
+        token={token}
+        mode="edit"
+        onBack={() => setReportStudent(null)}
+      />
+    );
+  }
+
   return (
     <motion.div
       initial={{ opacity: 0 }}
@@ -1531,6 +1544,14 @@ export default function AdminSettings({ token, user, onBack }: AdminSettingsProp
                             </div>
                             <div className="flex items-center gap-1.5 shrink-0">
                               <span className="text-[10px] text-secondary font-semibold opacity-0 group-hover:opacity-100 transition-opacity hidden sm:inline">Click to view / edit bio</span>
+                              <button
+                                onClick={(e) => { e.stopPropagation(); setReportStudent(s); }}
+                                className="flex items-center gap-1 text-[10px] font-semibold text-secondary hover:text-primary hover:bg-secondary/10 px-2 py-1.5 rounded-lg transition-colors cursor-pointer"
+                                title="Open studies report sheet"
+                              >
+                                <FileText className="w-4 h-4" />
+                                <span className="hidden md:inline">Report Sheet</span>
+                              </button>
                               <button
                                 onClick={(e) => { e.stopPropagation(); setEditingStudent(s); setShowStudentModal(true); }}
                                 className="p-1.5 text-on-surface-variant/50 hover:text-secondary hover:bg-secondary/5 rounded-lg transition-colors cursor-pointer"

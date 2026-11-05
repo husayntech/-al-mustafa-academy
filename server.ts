@@ -8,6 +8,15 @@ import jwt from "jsonwebtoken";
 import nodemailer from "nodemailer";
 import { initDatabase, queryAll, queryOne, execute } from "./db.js";
 import { cleanHtmlMarkup } from "./src/lib/cleanHtml.js";
+import {
+  REPORT_SUBJECTS,
+  MAX_TEST_SCORE,
+  MAX_EXAM_SCORE,
+  MAX_SHEET_TOTAL,
+  clampScore,
+  gradeFor,
+  defaultReportYear,
+} from "./src/lib/reportSheetConfig.js";
 import { fileURLToPath } from "url";
 import os from "os";
 
@@ -969,6 +978,214 @@ app.put("/api/students/:id/term-report", authMiddleware, async (req: Authenticat
   } catch (error: any) {
     console.error("Term report save error:", error);
     res.status(500).json({ error: "Failed to save term report" });
+  }
+});
+
+// --- Report Sheet Routes (official "STUDIES REPORT SHEET") ---
+// 13 fixed subjects, each marked out of 100 (test 30 + exam 70), stored per
+// student / term / session so the sheet can be reprinted and ranked.
+
+function parseSheetPeriod(query: any) {
+  const rawTerm = parseInt(String(query?.term ?? "1"), 10);
+  const term = rawTerm >= 1 && rawTerm <= 3 ? rawTerm : 1;
+  const year = String(query?.year ?? "").trim() || defaultReportYear();
+  return { term, year };
+}
+
+async function buildReportSheet(studentId: number, term: number, year: string) {
+  const student = await queryOne(
+    `SELECT s.id, s.full_name, s.surname, s.first_name, s.middle_name, s.gender, s.class_id,
+            c.name AS class_name, c.name_arabic AS class_name_arabic
+     FROM students s LEFT JOIN classes c ON c.id = s.class_id
+     WHERE s.id = $1`,
+    [studentId]
+  );
+  if (!student) return null;
+
+  const scoreRows = await queryAll(
+    `SELECT subject_key, test_score, exam_score, remarks
+     FROM report_sheet_scores WHERE student_id = $1 AND term = $2 AND year = $3`,
+    [studentId, term, year]
+  );
+  const byKey = new Map<string, Record<string, any>>();
+  for (const row of scoreRows) byKey.set(String(row.subject_key), row);
+
+  const subjects = REPORT_SUBJECTS.map((subject) => {
+    const row = byKey.get(subject.key);
+    const test = row && row.test_score !== null && row.test_score !== undefined ? Number(row.test_score) : null;
+    const exam = row && row.exam_score !== null && row.exam_score !== undefined ? Number(row.exam_score) : null;
+    return {
+      key: subject.key,
+      english: subject.english,
+      arabic: subject.arabic,
+      test_score: test,
+      exam_score: exam,
+      total: test === null && exam === null ? null : (test || 0) + (exam || 0),
+      remarks: row?.remarks ?? "",
+    };
+  });
+
+  const meta = await queryOne(
+    `SELECT general_remarks, promotion_to, vacation, resumption
+     FROM report_sheet_meta WHERE student_id = $1 AND term = $2 AND year = $3`,
+    [studentId, term, year]
+  );
+
+  const testTotal = subjects.reduce((sum, s) => sum + (s.test_score ?? 0), 0);
+  const examTotal = subjects.reduce((sum, s) => sum + (s.exam_score ?? 0), 0);
+  const total = testTotal + examTotal;
+  const percentage = Math.round((total / MAX_SHEET_TOTAL) * 1000) / 10;
+  const band = gradeFor(percentage);
+
+  // Position is the rank of this student's total among classmates who have a
+  // sheet saved for the same term and session.
+  let position: number | null = null;
+  let classSize = 0;
+  if (student.class_id) {
+    // Join students so rows left behind by a removed student (SQLite does not
+    // enforce the cascade) or a transferred student can never count towards the
+    // class size or the rank.
+    const peers = await queryAll(
+      `SELECT CAST(SUM(COALESCE(rs.test_score, 0) + COALESCE(rs.exam_score, 0)) AS INTEGER) AS total
+       FROM report_sheet_scores rs
+       JOIN students s ON s.id = rs.student_id
+       WHERE s.class_id = $1 AND rs.term = $2 AND rs.year = $3
+         AND (rs.test_score IS NOT NULL OR rs.exam_score IS NOT NULL)
+       GROUP BY rs.student_id`,
+      [student.class_id, term, year]
+    );
+    classSize = peers.length;
+    if (classSize > 0) position = peers.filter((p) => Number(p.total) > total).length + 1;
+  }
+
+  return {
+    student: {
+      id: student.id,
+      full_name: student.full_name,
+      class_id: student.class_id,
+      class_name: student.class_name || "",
+      class_name_arabic: student.class_name_arabic || "",
+    },
+    term,
+    year,
+    subjects,
+    meta: {
+      general_remarks: meta?.general_remarks ?? "",
+      promotion_to: meta?.promotion_to ?? "",
+      vacation: meta?.vacation ?? "",
+      resumption: meta?.resumption ?? "",
+    },
+    summary: {
+      testTotal,
+      examTotal,
+      total,
+      percentage,
+      grade: band.grade,
+      gradeLabel: band.label,
+      gradeArabic: band.arabic,
+      position,
+      classSize,
+    },
+  };
+}
+
+app.get("/api/report-sheets/:studentId", authMiddleware, async (req: AuthenticatedRequest, res: Response) => {
+  try {
+    const studentId = parseInt(req.params.studentId, 10);
+    if (!Number.isFinite(studentId)) return res.status(400).json({ error: "Invalid student id" });
+    const { term, year } = parseSheetPeriod(req.query);
+
+    const student = await queryOne("SELECT class_id FROM students WHERE id = $1", [studentId]);
+    if (!student) return res.status(404).json({ error: "Student not found" });
+
+    const isSelf = req.user?.type === "student" && Number(req.user?.id) === studentId;
+    if (!isSelf && !(await hasClassAccess(req.user, student.class_id))) {
+      return res.status(403).json({ error: "Access denied" });
+    }
+
+    const sheet = await buildReportSheet(studentId, term, year);
+    res.json({ sheet });
+  } catch (error: any) {
+    console.error("Report sheet fetch error:", error);
+    res.status(500).json({ error: "Failed to fetch report sheet" });
+  }
+});
+
+app.put("/api/report-sheets/:studentId", authMiddleware, async (req: AuthenticatedRequest, res: Response) => {
+  try {
+    if (req.user?.type === "student") return res.status(403).json({ error: "Students cannot edit report sheets" });
+
+    const studentId = parseInt(req.params.studentId, 10);
+    if (!Number.isFinite(studentId)) return res.status(400).json({ error: "Invalid student id" });
+
+    const term = parseInt(String(req.body?.term ?? "0"), 10);
+    if (!(term >= 1 && term <= 3)) return res.status(400).json({ error: "Term must be 1, 2 or 3" });
+    const year = String(req.body?.year ?? "").trim();
+    if (!year || year.length > 32) return res.status(400).json({ error: "A valid session year is required" });
+
+    const student = await queryOne("SELECT class_id FROM students WHERE id = $1", [studentId]);
+    if (!student) return res.status(404).json({ error: "Student not found" });
+    if (!(await hasClassAccess(req.user, student.class_id))) {
+      return res.status(403).json({ error: "You are not assigned to this student's class" });
+    }
+
+    const validKeys = new Set(REPORT_SUBJECTS.map((s) => s.key));
+    const submitted = new Map<string, any>();
+    if (Array.isArray(req.body?.scores)) {
+      for (const row of req.body.scores) {
+        const key = String(row?.key ?? "");
+        if (validKeys.has(key)) submitted.set(key, row);
+      }
+    }
+
+    for (const subject of REPORT_SUBJECTS) {
+      const row = submitted.get(subject.key);
+      if (!row) continue;
+      const test = clampScore(row.test_score, MAX_TEST_SCORE);
+      const exam = clampScore(row.exam_score, MAX_EXAM_SCORE);
+      const remarks = row.remarks ? String(row.remarks).slice(0, 500) : null;
+      await execute(
+        `INSERT INTO report_sheet_scores (student_id, class_id, term, year, subject_key, test_score, exam_score, remarks)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+         ON CONFLICT (student_id, term, year, subject_key) DO UPDATE SET
+           class_id = excluded.class_id,
+           test_score = excluded.test_score,
+           exam_score = excluded.exam_score,
+           remarks = excluded.remarks,
+           updated_at = CURRENT_TIMESTAMP`,
+        [studentId, student.class_id, term, year, subject.key, test, exam, remarks]
+      );
+    }
+
+    const meta = req.body?.meta || {};
+    const text = (v: any) => (v === null || v === undefined || v === "" ? null : String(v).slice(0, 500));
+    await execute(
+      `INSERT INTO report_sheet_meta (student_id, class_id, term, year, general_remarks, promotion_to, vacation, resumption)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+       ON CONFLICT (student_id, term, year) DO UPDATE SET
+         class_id = excluded.class_id,
+         general_remarks = excluded.general_remarks,
+         promotion_to = excluded.promotion_to,
+         vacation = excluded.vacation,
+         resumption = excluded.resumption,
+         updated_at = CURRENT_TIMESTAMP`,
+      [
+        studentId,
+        student.class_id,
+        term,
+        year,
+        text(meta.general_remarks),
+        text(meta.promotion_to),
+        text(meta.vacation),
+        text(meta.resumption),
+      ]
+    );
+
+    const sheet = await buildReportSheet(studentId, term, year);
+    res.json({ message: "Report sheet saved", sheet });
+  } catch (error: any) {
+    console.error("Report sheet save error:", error);
+    res.status(500).json({ error: "Failed to save report sheet" });
   }
 });
 

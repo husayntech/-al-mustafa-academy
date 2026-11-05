@@ -248,3 +248,40 @@ html[data-ama-boot="1"][data-ama-ready="1"] #root {
     print-color-adjust: exact;
   }
 }
+
+/* ---- Printable Studies Report Sheet ----
+ * The report sheet is also portalled into <body> as a hidden, non-editable copy
+ * (the on-screen page has inputs). While `body.printing-report-sheet` is set the
+ * app is hidden and only that paper-sized copy prints. */
+.report-sheet-page {
+  width: 100%;
+}
+.report-sheet-print {
+  display: none;
+}
+.font-arabic {
+  font-family: "Amiri", "Noto Naskh Arabic", "Scheherazade New", serif;
+}
+@media print {
+  @page {
+    size: A4 portrait;
+    margin: 6mm;
+  }
+  body.printing-report-sheet #root {
+    display: none !important;
+  }
+  body.printing-report-sheet .report-sheet-print {
+    display: block !important;
+    /* 740px ≈ 196mm: the sheet's px-based typography keeps its intended size
+       on an A4 page instead of being stretched across the paper. */
+    width: 740px;
+    max-width: 100%;
+    margin: 0 auto;
+    padding: 0;
+    background: #fff !important;
+  }
+  body.printing-report-sheet .report-sheet-print * {
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+}
