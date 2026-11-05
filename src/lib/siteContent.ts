@@ -1,9 +1,8 @@
 import { useEffect, useState } from "react";
 import { cleanHtmlMarkup } from "./cleanHtml.js";
 import { applyCustomStyles } from "./customStyles.js";
-import { applyThemeColors, applyTypography } from "./customStyles.js";
 
-export { cleanHtmlMarkup, useSiteContent, isEmptyPhotoUrl, SiteSnapshot, renderHtml };
+export { cleanHtmlMarkup };
 
 /** Whether a stored image URL should be treated as "no image behind it". */
 export function isEmptyPhotoUrl(url: string): boolean {
@@ -812,8 +811,6 @@ export function useSiteContent(): Record<string, string> {
     // background, so repeat visits don't wait on the network.
     if (readSiteSnapshot()) revealApp();
     const applyAll = (c: Record<string, string>) => {
-      applyThemeColors(c);
-      applyTypography(c);
       // Apply Style-Editor rules as soon as the DOM exists for them — the
       // bootstrap already injected them as CSS pre-paint; this re-applies the
       // exact same values so saved edits survive any remount.

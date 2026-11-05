@@ -15,6 +15,7 @@ import { getEditMode, setEditMode } from "../../lib/editMode";
 import RichTextEditor from "./RichTextEditor";
 import ConfirmModal from "./ConfirmModal";
 import FontPicker from "./FontPicker";
+import ReportSheet from "./ReportSheet";
 
 const PAGE_GROUP_MAP: Record<string, string[]> = {
   home: ["Text & Announcements", "Header & Footer", "Colors & Theme", "Typography & Styling", "Images", "Contact", "Section Spacing"],
@@ -203,6 +204,7 @@ export default function AdminSettings({ token, user, onBack }: AdminSettingsProp
   const [showAssignModal, setShowAssignModal] = useState(false);
   const [assignForm, setAssignForm] = useState({ teacher_id: 0, class_ids: [] as number[] });
   const [allStudents, setAllStudents] = useState<any[]>([]);
+  const [reportStudent, setReportStudent] = useState<any>(null);
   const [editingClass, setEditingClass] = useState<Class | null>(null);
   const [classForm, setClassForm] = useState({ name: "", name_arabic: "", display_order: 0 });
   const [showStudentModal, setShowStudentModal] = useState(false);
@@ -746,7 +748,6 @@ export default function AdminSettings({ token, user, onBack }: AdminSettingsProp
     setTimeout(() => setMessage(null), 4000);
   };
 
-<<<<<<< HEAD
   /**
    * Host-side: removes the current live photo value so the welcome photo
    * area is only visible when Edit Mode is turned on. Public pages stay clean.
@@ -772,37 +773,6 @@ export default function AdminSettings({ token, user, onBack }: AdminSettingsProp
     setTimeout(() => setMessage(null), 4000);
   };
 
-  const fetchResultSheetConfig = async () => {
-    try {
-      const res = await fetch("/api/admin/result-sheet-config", {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      const data = await res.json();
-      setResultSheetConfig(data.config || {});
-    } catch (err) {
-      console.error("Failed to fetch result sheet config:", err);
-    }
-  };
-
-  const handleSaveResultSheetConfig = async () => {
-    setSavingContent(true);
-    try {
-      const res = await fetch("/api/admin/result-sheet-config", {
-        method: "PUT",
-        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
-        body: JSON.stringify({ updates: resultSheetConfig }),
-      });
-      if (res.ok) {
-        setMessage({ type: "success", text: "Result sheet config saved!" });
-        setConfigDirty(false);
-      }
-    } catch {}
-    setSavingContent(false);
-    setTimeout(() => setMessage(null), 3000);
-  };
-
-=======
->>>>>>> 3e5fe05ee59689fe0137c05087473b839c0b3ed7
   const handleAddStudent = async () => {
     const composedName = composeFullName(studentForm);
     if (!composedName || !studentForm.class_id) return;
@@ -1059,6 +1029,17 @@ export default function AdminSettings({ token, user, onBack }: AdminSettingsProp
     { id: "broadcast" as const, label: "Broadcast", icon: Megaphone },
     { id: "tools" as const, label: "Tools", icon: Database },
   ];
+
+  if (reportStudent) {
+    return (
+      <ReportSheet
+        studentId={reportStudent.id}
+        token={token}
+        mode="edit"
+        onBack={() => setReportStudent(null)}
+      />
+    );
+  }
 
   return (
     <motion.div
@@ -1532,6 +1513,14 @@ export default function AdminSettings({ token, user, onBack }: AdminSettingsProp
                             <div className="flex items-center gap-1.5 shrink-0">
                               <span className="text-[10px] text-secondary font-semibold opacity-0 group-hover:opacity-100 transition-opacity hidden sm:inline">Click to view / edit bio</span>
                               <button
+                                onClick={(e) => { e.stopPropagation(); setReportStudent(s); }}
+                                className="flex items-center gap-1 text-[10px] font-semibold text-secondary hover:text-primary hover:bg-secondary/10 px-2 py-1.5 rounded-lg transition-colors cursor-pointer"
+                                title="Open studies report sheet"
+                              >
+                                <FileText className="w-4 h-4" />
+                                <span className="hidden md:inline">Report Sheet</span>
+                              </button>
+                              <button
                                 onClick={(e) => { e.stopPropagation(); setEditingStudent(s); setShowStudentModal(true); }}
                                 className="p-1.5 text-on-surface-variant/50 hover:text-secondary hover:bg-secondary/5 rounded-lg transition-colors cursor-pointer"
                                 title="Edit student details"
@@ -1950,8 +1939,6 @@ export default function AdminSettings({ token, user, onBack }: AdminSettingsProp
           </div>
         )}
 
-<<<<<<< HEAD
-        {/* ======= RESULT SHEET TAB ======= */}
 
         {/* ======= WELCOME PHOTO CLEAR (HOST-SIDE ONLY) ======= */}
         {activeTab === "content" && (
@@ -1988,170 +1975,6 @@ export default function AdminSettings({ token, user, onBack }: AdminSettingsProp
             </div>
           </div>
         )}
-        {activeTab === "result-sheet" && (
-          <div>
-            <div className="flex items-center justify-between mb-6">
-              <div>
-                <h2 className="font-serif text-xl font-bold text-primary">Result Sheet Configuration</h2>
-                <p className="text-xs text-on-surface-variant mt-1">Design the sheet end-to-end — layout, tables, fonts, colors and Arabic (right-to-left)</p>
-              </div>
-              <div className="flex items-center gap-2">
-                <button onClick={refreshCurrentTab}
-                  className="flex items-center gap-1.5 text-xs text-on-surface-variant hover:text-primary px-3 py-2 rounded-lg hover:bg-surface-container transition-colors cursor-pointer">
-                  <RefreshCw className="w-3.5 h-3.5" /> Refresh
-                </button>
-                {configDirty && (
-                  <button onClick={handleSaveResultSheetConfig} disabled={savingContent}
-                    className="flex items-center gap-1.5 text-xs bg-primary text-white px-4 py-2.5 rounded-lg font-semibold hover:bg-primary-container transition-colors cursor-pointer disabled:opacity-50">
-                    <Save className="w-4 h-4" />
-                    {savingContent ? "Saving..." : "Save Config"}
-                  </button>
-                )}
-              </div>
-            </div>
-            <div className="space-y-6">
-              {/* Template Design Section */}
-              <div className="bg-white border border-primary/5 rounded-xl p-5 shadow-xs">
-                <div className="flex items-center justify-between mb-2 flex-wrap gap-2">
-                  <h3 className="font-serif font-bold text-primary text-sm flex items-center gap-2">
-                    <LayoutTemplate className="w-4 h-4 text-secondary" />
-                    Result Sheet Template (Full Design)
-                  </h3>
-                  <button
-                    onClick={() => {
-                      setResultSheetConfig({ ...resultSheetConfig, result_sheet_template: RESULT_SHEET_DEFAULTS.result_sheet_template });
-                      setConfigDirty(true);
-                    }}
-                    className="text-[10px] text-on-surface-variant hover:text-secondary underline cursor-pointer"
-                  >
-                    Reset to default template
-                  </button>
-                </div>
-                <p className="text-[11px] text-on-surface-variant leading-relaxed mb-3">
-                  Build the entire sheet here — headings, tables, borders, colors, fonts and Arabic text (use the{" "}
-                  <LanguagesIcon className="w-3 h-3 inline text-secondary" /> RTL button for right-to-left). Click a green
-                  chip below the toolbar to insert a live data field; the saved values in the sections below fill them in.
-                </p>
-                <p className="text-[10px] text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2 mb-3 leading-relaxed">
-                  💡 For images in the PDF, use the editor's <b>Upload</b> button (or /uploads/… URLs) — external
-                  Google/Drive images will show on screen but stay blank in the exported PDF.
-                </p>
-                <RichTextEditor
-                  value={resultSheetConfig.result_sheet_template || RESULT_SHEET_DEFAULTS.result_sheet_template}
-                  onChange={(html) => {
-                    setResultSheetConfig({ ...resultSheetConfig, result_sheet_template: html });
-                    setConfigDirty(true);
-                  }}
-                  token={token}
-                  placeholders={RESULT_SHEET_PLACEHOLDERS}
-                  minHeight={340}
-                />
-              </div>
-
-              {/* Live Preview */}
-              <div className="bg-white border border-primary/5 rounded-xl p-5 shadow-xs">
-                <div className="flex items-center justify-between mb-3">
-                  <h3 className="font-serif font-bold text-primary text-sm flex items-center gap-2">
-                    <Eye className="w-4 h-4 text-secondary" />
-                    Live Preview
-                  </h3>
-                  <span className="text-[10px] text-on-surface-variant">Sample student shown; updates as you type</span>
-                </div>
-                <div className="bg-surface border border-border rounded-xl p-4 overflow-auto max-h-[650px]">
-                  <div className="bg-white shadow-lg rounded-sm p-5 mx-auto" style={{ maxWidth: 794 }}>
-                    <div
-                      className="rich-html"
-                      dangerouslySetInnerHTML={{
-                        __html: renderResultSheetTemplate(
-                          resultSheetConfig.result_sheet_template || RESULT_SHEET_DEFAULTS.result_sheet_template,
-                          resultSheetPreviewData
-                        ),
-                      }}
-                    />
-                  </div>
-                </div>
-              </div>
-
-              {/* School Info Section */}
-              <div className="bg-white border border-primary/5 rounded-xl p-5 shadow-xs">
-                <h3 className="font-serif font-bold text-primary text-sm mb-4">School Information</h3>
-                <div className="space-y-3">
-                  <div>
-                    <label className="text-[10px] font-bold text-on-surface-variant uppercase tracking-wider block mb-1">School Name (English)</label>
-                    <input type="text" value={resultSheetConfig['school_name_en'] || 'AL-MUSTAFA ACADEMY FOR QUR\'AN MEMORIZATION & ISLAMIC STUDIES'}
-                      onChange={(e) => { setResultSheetConfig({...resultSheetConfig, 'school_name_en': e.target.value}); setConfigDirty(true); }}
-                      className="w-full bg-surface border border-border p-3 text-sm rounded-lg focus:outline-none focus:border-secondary" />
-                  </div>
-                  <div>
-                    <label className="text-[10px] font-bold text-on-surface-variant uppercase tracking-wider block mb-1">School Name (Arabic)</label>
-                    <input type="text" dir="rtl" value={resultSheetConfig['school_name_ar'] || 'مدرسة المصطفى لتحفيظ القرآن والدراسات الإسلامية'}
-                      onChange={(e) => { setResultSheetConfig({...resultSheetConfig, 'school_name_ar': e.target.value}); setConfigDirty(true); }}
-                      className="w-full bg-surface border border-border p-3 text-sm rounded-lg focus:outline-none focus:border-secondary" />
-                  </div>
-                  <div>
-                    <label className="text-[10px] font-bold text-on-surface-variant uppercase tracking-wider block mb-1">Location</label>
-                    <input type="text" value={resultSheetConfig['school_location'] || 'ILORIN, NIGERIA'}
-                      onChange={(e) => { setResultSheetConfig({...resultSheetConfig, 'school_location': e.target.value}); setConfigDirty(true); }}
-                      className="w-full bg-surface border border-border p-3 text-sm rounded-lg focus:outline-none focus:border-secondary" />
-                  </div>
-                  <div>
-                    <label className="text-[10px] font-bold text-on-surface-variant uppercase tracking-wider block mb-1">Contact Info</label>
-                    <input type="text" value={resultSheetConfig['school_contact'] || 'Tel: 08037525855 | Address: I/C Khaleel-ur-Rahman Group of Schools, 25, Sabo-Line Road, Opposite Saw-Mill, Ilorin'}
-                      onChange={(e) => { setResultSheetConfig({...resultSheetConfig, 'school_contact': e.target.value}); setConfigDirty(true); }}
-                      className="w-full bg-surface border border-border p-3 text-sm rounded-lg focus:outline-none focus:border-secondary" />
-                  </div>
-                </div>
-              </div>
-              {/* Grading Scale Section */}
-              <div className="bg-white border border-primary/5 rounded-xl p-5 shadow-xs">
-                <h3 className="font-serif font-bold text-primary text-sm mb-4">Grading Scale</h3>
-                <div className="space-y-2">
-                  {[
-                    { key: 'grade_a', label: 'Grade A (Excellent)', default: '70 - 100 | Excellent | ممتاز' },
-                    { key: 'grade_b', label: 'Grade B (Very Good)', default: '60 - 69 | Very Good | جيد جداً' },
-                    { key: 'grade_c', label: 'Grade C (Good)', default: '50 - 59 | Credit / Good | جيد' },
-                    { key: 'grade_p', label: 'Grade P (Pass)', default: '40 - 49 | Pass | مقبول' },
-                    { key: 'grade_f', label: 'Grade F (Fail)', default: '0 - 39 | Fail | راسب' },
-                  ].map(g => (
-                    <div key={g.key} className="flex items-center gap-3">
-                      <label className="text-xs text-on-surface-variant w-40 shrink-0">{g.label}</label>
-                      <input type="text" value={resultSheetConfig[g.key] || g.default}
-                        onChange={(e) => { setResultSheetConfig({...resultSheetConfig, [g.key]: e.target.value}); setConfigDirty(true); }}
-                        className="flex-1 bg-surface border border-border p-2.5 text-sm rounded-lg focus:outline-none focus:border-secondary" />
-                    </div>
-                  ))}
-                </div>
-              </div>
-              {/* Footer & Remarks Section */}
-              <div className="bg-white border border-primary/5 rounded-xl p-5 shadow-xs">
-                <h3 className="font-serif font-bold text-primary text-sm mb-4">Footer & Remarks</h3>
-                <div className="space-y-3">
-                  <div>
-                    <label className="text-[10px] font-bold text-on-surface-variant uppercase tracking-wider block mb-1">Footer Text (English)</label>
-                    <input type="text" value={resultSheetConfig['footer_en'] || "AL-MUSTAFA ACADEMY \u2014 Where the Qur'an and Sunnah Shape Character and Excellence"}
-                      onChange={(e) => { setResultSheetConfig({...resultSheetConfig, 'footer_en': e.target.value}); setConfigDirty(true); }}
-                      className="w-full bg-surface border border-border p-3 text-sm rounded-lg focus:outline-none focus:border-secondary" />
-                  </div>
-                  <div>
-                    <label className="text-[10px] font-bold text-on-surface-variant uppercase tracking-wider block mb-1">Footer Text (Arabic)</label>
-                    <input type="text" dir="rtl" value={resultSheetConfig['footer_ar'] || 'أكاديمية المصطفى — جسر بين التقاليد والتميز'}
-                      onChange={(e) => { setResultSheetConfig({...resultSheetConfig, 'footer_ar': e.target.value}); setConfigDirty(true); }}
-                      className="w-full bg-surface border border-border p-3 text-sm rounded-lg focus:outline-none focus:border-secondary" />
-                  </div>
-                  <div>
-                    <label className="text-[10px] font-bold text-on-surface-variant uppercase tracking-wider block mb-1">Result Title</label>
-                    <input type="text" value={resultSheetConfig['result_title'] || 'STUDENT RESULT SHEET'}
-                      onChange={(e) => { setResultSheetConfig({...resultSheetConfig, 'result_title': e.target.value}); setConfigDirty(true); }}
-                      className="w-full bg-surface border border-border p-3 text-sm rounded-lg focus:outline-none focus:border-secondary" />
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-        )}
-
-=======
->>>>>>> 3e5fe05ee59689fe0137c05087473b839c0b3ed7
         {/* ======= TOOLS TAB ======= */}
         {activeTab === "tools" && (
           <div>

@@ -257,6 +257,32 @@ export const POSTGRES_SCHEMA_SQL = `
       active INTEGER DEFAULT 1,
       created_at TIMESTAMPTZ DEFAULT NOW()
     );
+    CREATE TABLE IF NOT EXISTS public.report_sheet_scores (
+      id SERIAL PRIMARY KEY,
+      student_id INTEGER NOT NULL REFERENCES public.students(id) ON DELETE CASCADE,
+      class_id INTEGER NOT NULL REFERENCES public.classes(id) ON DELETE CASCADE,
+      term INTEGER NOT NULL CHECK (term IN (1, 2, 3)),
+      year TEXT NOT NULL,
+      subject_key TEXT NOT NULL,
+      test_score INTEGER,
+      exam_score INTEGER,
+      remarks TEXT,
+      updated_at TIMESTAMPTZ DEFAULT NOW(),
+      UNIQUE(student_id, term, year, subject_key)
+    );
+    CREATE TABLE IF NOT EXISTS public.report_sheet_meta (
+      id SERIAL PRIMARY KEY,
+      student_id INTEGER NOT NULL REFERENCES public.students(id) ON DELETE CASCADE,
+      class_id INTEGER NOT NULL REFERENCES public.classes(id) ON DELETE CASCADE,
+      term INTEGER NOT NULL CHECK (term IN (1, 2, 3)),
+      year TEXT NOT NULL,
+      general_remarks TEXT,
+      promotion_to TEXT,
+      vacation TEXT,
+      resumption TEXT,
+      updated_at TIMESTAMPTZ DEFAULT NOW(),
+      UNIQUE(student_id, term, year)
+    );
     CREATE TABLE IF NOT EXISTS public.sessions (
       id SERIAL PRIMARY KEY,
       user_id INTEGER NOT NULL REFERENCES public.users(id),
@@ -319,6 +345,32 @@ const POSTGRES_UPGRADE_SQL = `
     pin TEXT UNIQUE NOT NULL,
     active INTEGER DEFAULT 1,
     created_at TIMESTAMPTZ DEFAULT NOW()
+  );
+  CREATE TABLE IF NOT EXISTS public.report_sheet_scores (
+    id SERIAL PRIMARY KEY,
+    student_id INTEGER NOT NULL REFERENCES public.students(id) ON DELETE CASCADE,
+    class_id INTEGER NOT NULL REFERENCES public.classes(id) ON DELETE CASCADE,
+    term INTEGER NOT NULL CHECK (term IN (1, 2, 3)),
+    year TEXT NOT NULL,
+    subject_key TEXT NOT NULL,
+    test_score INTEGER,
+    exam_score INTEGER,
+    remarks TEXT,
+    updated_at TIMESTAMPTZ DEFAULT NOW(),
+    UNIQUE(student_id, term, year, subject_key)
+  );
+  CREATE TABLE IF NOT EXISTS public.report_sheet_meta (
+    id SERIAL PRIMARY KEY,
+    student_id INTEGER NOT NULL REFERENCES public.students(id) ON DELETE CASCADE,
+    class_id INTEGER NOT NULL REFERENCES public.classes(id) ON DELETE CASCADE,
+    term INTEGER NOT NULL CHECK (term IN (1, 2, 3)),
+    year TEXT NOT NULL,
+    general_remarks TEXT,
+    promotion_to TEXT,
+    vacation TEXT,
+    resumption TEXT,
+    updated_at TIMESTAMPTZ DEFAULT NOW(),
+    UNIQUE(student_id, term, year)
   );
   ALTER TABLE public.student_pins ADD COLUMN IF NOT EXISTS class_id INTEGER REFERENCES public.classes(id) ON DELETE SET NULL;
   ALTER TABLE public.student_pins ALTER COLUMN student_id DROP NOT NULL;
@@ -722,6 +774,38 @@ function ensureSchema(database: SqlJsDatabase) {
       pin TEXT UNIQUE NOT NULL,
       active INTEGER DEFAULT 1,
       created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+    )
+  `);
+
+  database.run(`
+    CREATE TABLE IF NOT EXISTS report_sheet_scores (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      student_id INTEGER NOT NULL REFERENCES students(id) ON DELETE CASCADE,
+      class_id INTEGER NOT NULL REFERENCES classes(id) ON DELETE CASCADE,
+      term INTEGER NOT NULL CHECK (term IN (1, 2, 3)),
+      year TEXT NOT NULL,
+      subject_key TEXT NOT NULL,
+      test_score INTEGER,
+      exam_score INTEGER,
+      remarks TEXT,
+      updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      UNIQUE(student_id, term, year, subject_key)
+    )
+  `);
+
+  database.run(`
+    CREATE TABLE IF NOT EXISTS report_sheet_meta (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      student_id INTEGER NOT NULL REFERENCES students(id) ON DELETE CASCADE,
+      class_id INTEGER NOT NULL REFERENCES classes(id) ON DELETE CASCADE,
+      term INTEGER NOT NULL CHECK (term IN (1, 2, 3)),
+      year TEXT NOT NULL,
+      general_remarks TEXT,
+      promotion_to TEXT,
+      vacation TEXT,
+      resumption TEXT,
+      updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      UNIQUE(student_id, term, year)
     )
   `);
 

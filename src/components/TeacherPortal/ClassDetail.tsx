@@ -8,6 +8,7 @@ import {
 } from "lucide-react";
 import { Class, Student, Subject } from "../../types";
 import { useSiteContent } from "../../lib/siteContent";
+import ReportSheet from "./ReportSheet";
 
 // Letterhead details printed on the attendance sheet
 const SCHOOL_LETTERHEAD = {
@@ -75,6 +76,7 @@ export default function ClassDetail({ classData, token, userRole, onBack, onSubj
   const [editSubject, setEditSubject] = useState<Subject | null>(null);
   const [subjectForm, setSubjectForm] = useState({ name: "", book_name: "", book_author: "" });
   const [savingSubject, setSavingSubject] = useState(false);
+  const [reportStudent, setReportStudent] = useState<Student | null>(null);
 
   // Attendance state
   const [showAttendance, setShowAttendance] = useState(false);
@@ -350,6 +352,18 @@ export default function ClassDetail({ classData, token, userRole, onBack, onSubj
   for (const s of students) {
     const st = (attendanceMap[`${s.id}`] || "present") as keyof typeof counts;
     if (counts[st] !== undefined) counts[st]++;
+  }
+
+  if (reportStudent) {
+    return (
+      <ReportSheet
+        studentId={reportStudent.id}
+        token={token}
+        mode="edit"
+        initialTerm={1}
+        onBack={() => setReportStudent(null)}
+      />
+    );
   }
 
   if (loading) {
@@ -764,6 +778,12 @@ export default function ClassDetail({ classData, token, userRole, onBack, onSubj
                     </div>
                   </div>
                   <div className="flex items-center gap-1.5 shrink-0">
+                    <button onClick={() => setReportStudent(student)}
+                      title="Studies report sheet"
+                      className="flex items-center gap-1 text-[11px] font-semibold text-secondary hover:text-primary hover:bg-secondary/10 px-2 py-1.5 rounded-lg transition-colors cursor-pointer">
+                      <FileText className="w-4 h-4" />
+                      <span className="hidden md:inline">Report Sheet</span>
+                    </button>
                     <button onClick={() => {
                         if (onEditStudent) { onEditStudent(student); return; }
                         setEditingStudent(student);
