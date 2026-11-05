@@ -19,11 +19,14 @@ const ANNOUNCEMENTS_IMAGE_FALLBACK =
 const EXTRA_IMAGE_FALLBACK =
   "https://lh3.googleusercontent.com/aida-public/AB6AXuCxfijj9ohXFXMZVZUkqyTBQB3ImkiFqpltJjydzSOwCdWxMCOpjETAeJ0I3Dl2QNAr5nzkU5DrMx2jcG6Ji1g7P0jHDnuRCbciGMcW0jtmiPJmt1qfxOrt0m1FTadmggzX59fBDY9T0NuO2SM39if0PR_1nPijlwHzQvnfZ0LWAPdn-c_YaEuaHJQZUhSfWOw-kIYId9vej-znTy6og9AsZyoDgUQoDkuYqH3CTqZ1bBs7nZISweD_oHu-n1bEABjP3fhwUv1R4sM";
 
+const EMPTY_FRAME_CLASS =
+  "w-20 h-20 rounded-full border-2 border-dashed border-primary/40 bg-white flex items-center justify-center text-primary font-serif font-bold text-xl";
+
+const EMPTY_FRAME_RED_CLASS =
+  "w-20 h-20 rounded-full border-2 border-dashed border-red-400 bg-red-50 flex flex-col items-center justify-center";
+
 export default function MadrasahActivitiesTab() {
   const siteContent = useSiteContent();
-  const renderHtml = (value: string | undefined, fallback: string) => ({
-    __html: value && value.trim() ? value : fallback,
-  });
 
   // Spacing controls
   const madrasahHeroBottomSpacing = parseInt(siteContent.madrasah_hero_bottom_spacing || "0");
@@ -239,6 +242,14 @@ export default function MadrasahActivitiesTab() {
     },
   ];
 
+  // Extra Lessons section: the photo frame shows everywhere; a user who has
+  // cleared an image (host-side "photo clean") gets the red "No photo" frame,
+  // and the app can still replace it later without changing the page skeleton.
+  const extraImagePlaceholderClass =
+    siteContent.madrasah_extra_image === "cleared-by-user"
+      ? EMPTY_FRAME_RED_CLASS
+      : EMPTY_FRAME_CLASS;
+
   return (
     <motion.div
       initial={{ opacity: 0, y: 32 }}
@@ -250,7 +261,10 @@ export default function MadrasahActivitiesTab() {
       id="madrasah-section"
     >
       {/* ======================= HERO ======================= */}
-      <section style={{ marginBottom: madrasahHeroBottomSpacing ? `${madrasahHeroBottomSpacing}px` : undefined }} className="relative h-[300px] sm:h-[360px] flex items-center justify-center overflow-hidden">
+      <section
+        style={{ marginBottom: madrasahHeroBottomSpacing ? `${madrasahHeroBottomSpacing}px` : undefined }}
+        className="relative h-[300px] sm:h-[360px] flex items-center justify-center overflow-hidden"
+      >
         <EditableImage
           contentKey="madrasah_hero_image"
           label="Madrasah Hero Background"
@@ -295,10 +309,7 @@ export default function MadrasahActivitiesTab() {
             className="font-sans text-sm sm:text-lg text-white/90 max-w-2xl mx-auto leading-relaxed font-light"
           >
             <EditableText contentKey="madrasah_hero_subtitle" value={siteContent.madrasah_hero_subtitle || ""} fallback="From the morning assembly to the final activity, every moment of our school day is arranged with purpose — nurturing faith, discipline, knowledge, and brotherhood." label="Madrasah Hero Subtitle">
-              <span dangerouslySetInnerHTML={renderHtml(
-                siteContent.madrasah_hero_subtitle,
-                "From the morning assembly to the final activity, every moment of our school day is arranged with purpose — nurturing faith, discipline, knowledge, and brotherhood."
-              )} />
+              <span dangerouslySetInnerHTML={renderHtml(siteContent.madrasah_hero_subtitle, "From the morning assembly to the final activity, every moment of our school day is arranged with purpose — nurturing faith, discipline, knowledge, and brotherhood.")} />
             </EditableText>
           </p>
         </div>
@@ -336,10 +347,7 @@ export default function MadrasahActivitiesTab() {
               className="font-sans text-xs sm:text-sm text-on-surface-variant leading-relaxed font-light"
             >
               <EditableText contentKey="madrasah_intro_text" value={siteContent.madrasah_intro_text || ""} fallback="Every day at Al Mustafa Academy follows a carefully arranged routine that balances spiritual development, Quranic memorization, and formal lessons — so each student grows in knowledge, character, and connection to their faith." label="Intro Paragraph">
-                <span dangerouslySetInnerHTML={renderHtml(
-                  siteContent.madrasah_intro_text,
-                  "Every day at Al Mustafa Academy follows a carefully arranged routine that balances spiritual development, Quranic memorization, and formal lessons — so each student grows in knowledge, character, and connection to their faith."
-                )} />
+                <span dangerouslySetInnerHTML={renderHtml(siteContent.madrasah_intro_text, "Every day at Al Mustafa Academy follows a carefully arranged routine that balances spiritual development, Quranic memorization, and formal lessons — so each student grows in knowledge, character, and connection to their faith.")} />
               </EditableText>
             </p>
             <div className="mt-8 flex items-center gap-2 text-primary bg-primary/5 border border-primary/10 rounded-full px-4 py-2 w-fit">
@@ -409,10 +417,7 @@ export default function MadrasahActivitiesTab() {
               className="font-sans text-xs sm:text-sm text-on-surface-variant max-w-md mx-auto"
             >
               <EditableText contentKey="madrasah_timeline_subtitle" value={siteContent.madrasah_timeline_subtitle || ""} fallback="Each step of the day is timed with intention — from assembly to Salah." label="Timeline Subtitle">
-                <span dangerouslySetInnerHTML={renderHtml(
-                  siteContent.madrasah_timeline_subtitle,
-                  "Each step of the day is timed with intention — from assembly to Salah."
-                )} />
+                <span dangerouslySetInnerHTML={renderHtml(siteContent.madrasah_timeline_subtitle, "Each step of the day is timed with intention — from assembly to Salah.")} />
               </EditableText>
             </p>
             <div className="w-24 h-1 bg-secondary mx-auto rounded-full mt-5" />
@@ -569,32 +574,6 @@ export default function MadrasahActivitiesTab() {
               );
             })}
           </div>
-
-          {/* Note */}
-          <motion.div
-            initial={{ opacity: 0, y: 24 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true, margin: "-60px" }}
-            transition={{ duration: 0.45, delay: 0.3 }}
-            className="mt-12 bg-secondary-container/30 border border-secondary/20 rounded-2xl p-6 text-center max-w-2xl mx-auto"
-          >
-            <Sparkles className="w-6 h-6 text-secondary mx-auto mb-3" />
-            <h4 className="font-serif text-lg font-bold text-primary mb-2">
-              <EditableText contentKey="madrasah_mutuun_heading" value={siteContent.madrasah_mutuun_heading || ""} fallback="Mutuun (Arabic Poems)" label="Mutuun Note Heading" plain>
-                <span>{siteContent.madrasah_mutuun_heading || "Mutuun (Arabic Poems)"}</span>
-              </EditableText>
-            </h4>
-            <p
-              className="font-sans text-xs sm:text-sm text-on-surface-variant leading-relaxed font-light"
-            >
-              <EditableText contentKey="madrasah_mutuun_text" value={siteContent.madrasah_mutuun_text || ""} fallback="On both Tuesday and Wednesday, the final 15 minutes (5:45 PM – 6:00 PM) are dedicated to memorizing Mutuun — traditional Arabic poems that reinforce language skills, poetic expression, and cultural heritage." label="Mutuun Note Text">
-                <span dangerouslySetInnerHTML={renderHtml(
-                  siteContent.madrasah_mutuun_text,
-                  "On both Tuesday and Wednesday, the final 15 minutes (5:45 PM – 6:00 PM) are dedicated to memorizing Mutuun — traditional Arabic poems that reinforce language skills, poetic expression, and cultural heritage."
-                )} />
-              </EditableText>
-            </p>
-          </motion.div>
         </div>
       </motion.section>
 
@@ -648,10 +627,7 @@ export default function MadrasahActivitiesTab() {
               style={{ marginBottom: `${madrasahAnnouncementsHeadingGap}px` }}
             >
               <EditableText contentKey="madrasah_announcements_heading" value={siteContent.madrasah_announcements_heading || ""} fallback="Student Address & Announcements" label="Student Address Heading">
-                <span dangerouslySetInnerHTML={renderHtml(
-                  siteContent.madrasah_announcements_heading,
-                  "Student Address & Announcements"
-                )} />
+                <span dangerouslySetInnerHTML={renderHtml(siteContent.madrasah_announcements_heading, "Student Address & Announcements")} />
               </EditableText>
             </h2>
             <div className="w-24 h-1 bg-secondary rounded-full" style={{ marginBottom: `${madrasahAnnouncementsHeadingGap}px` }} />
@@ -659,10 +635,7 @@ export default function MadrasahActivitiesTab() {
               className="font-sans text-xs sm:text-sm text-on-surface-variant leading-relaxed font-light mb-6"
             >
               <EditableText contentKey="madrasah_announcements_text" value={siteContent.madrasah_announcements_text || ""} fallback="A cherished part of our day — sometimes after the prayer and the activities, a student is invited to come out and address his or her fellow students, building confidence and leadership. At other times, our staff pass on information that is crucial to them, keeping everyone informed and connected." label="Student Address Text">
-                <span dangerouslySetInnerHTML={renderHtml(
-                  siteContent.madrasah_announcements_text,
-                  "A cherished part of our day — sometimes after the prayer and the activities, a student is invited to come out and address his or her fellow students, building confidence and leadership. At other times, our staff pass on information that is crucial to them, keeping everyone informed and connected."
-                )} />
+                <span dangerouslySetInnerHTML={renderHtml(siteContent.madrasah_announcements_text, "A cherished part of our day — sometimes after the prayer and the activities, a student is invited to come out and address his or her fellow students, building confidence and leadership. At other times, our staff pass on information that is crucial to them, keeping everyone informed and connected.")} />
               </EditableText>
             </p>
             <div className="flex items-start gap-3 bg-white border border-primary/5 rounded-xl p-4 shadow-xs">
@@ -697,10 +670,7 @@ export default function MadrasahActivitiesTab() {
               style={{ marginBottom: `${madrasahExtraHeadingGap}px` }}
             >
               <EditableText contentKey="madrasah_extra_heading" value={siteContent.madrasah_extra_heading || ""} fallback="Extra Lessons & Activities" label="Extra Lessons Heading">
-                <span dangerouslySetInnerHTML={renderHtml(
-                  siteContent.madrasah_extra_heading,
-                  "Extra Lessons & Activities"
-                )} />
+                <span dangerouslySetInnerHTML={renderHtml(siteContent.madrasah_extra_heading, "Extra Lessons & Activities")} />
               </EditableText>
             </h2>
             <div className="w-24 h-1 bg-secondary rounded-full" style={{ marginBottom: `${madrasahExtraHeadingGap}px` }} />
@@ -708,10 +678,7 @@ export default function MadrasahActivitiesTab() {
               className="font-sans text-xs sm:text-sm text-on-surface-variant leading-relaxed font-light"
             >
               <EditableText contentKey="madrasah_extra_text" value={siteContent.madrasah_extra_text || ""} fallback="Learning does not end when the main classes do. From 2:00 PM to 3:30 PM, some students stay behind for extra lessons and other activities — receiving the additional support and enrichment they need to truly excel." label="Extra Lessons Text">
-                <span dangerouslySetInnerHTML={renderHtml(
-                  siteContent.madrasah_extra_text,
-                  "Learning does not end when the main classes do. From 2:00 PM to 3:30 PM, some students stay behind for extra lessons and other activities — receiving the additional support and enrichment they need to truly excel."
-                )} />
+                <span dangerouslySetInnerHTML={renderHtml(siteContent.madrasah_extra_text, "Learning does not end when the main classes do. From 2:00 PM to 3:30 PM, some students stay behind for extra lessons and other activities — receiving the additional support and enrichment they need to truly excel.")} />
               </EditableText>
             </p>
             <div className="mt-8 inline-flex items-center gap-2 bg-primary text-white text-xs font-bold px-4 py-2.5 rounded-full shadow-sm">

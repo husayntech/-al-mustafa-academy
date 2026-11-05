@@ -786,6 +786,31 @@ export default function AdminSettings({ token, user, onBack }: AdminSettingsProp
     setTimeout(() => setMessage(null), 4000);
   };
 
+  /**
+   * Host-side: removes the current live photo value so the welcome photo
+   * area is only visible when Edit Mode is turned on. Public pages stay clean.
+   */
+  const handleImageClear = async (key: string) => {
+    if (!confirm("Remove the current photo value? You will need to upload a new one to bring it back.")) return;
+    try {
+      const res = await fetch("/api/admin/content", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ updates: { [key]: "" } }),
+      });
+      if (res.ok) {
+        handleContentChange(key, "");
+        setMessage({ type: "success", text: "Photo cleared. It will disappear from the public site until you add a new one." });
+      } else {
+        const data = await res.json().catch(() => ({}));
+        setMessage({ type: "error", text: data.error || "Could not clear the photo" });
+      }
+    } catch {
+      setMessage({ type: "error", text: "Connection error clearing the photo" });
+    }
+    setTimeout(() => setMessage(null), 4000);
+  };
+
   const fetchResultSheetConfig = async () => {
     try {
       const res = await fetch("/api/admin/result-sheet-config", {
@@ -1967,6 +1992,42 @@ export default function AdminSettings({ token, user, onBack }: AdminSettingsProp
         )}
 
         {/* ======= RESULT SHEET TAB ======= */}
+
+        {/* ======= WELCOME PHOTO CLEAR (HOST-SIDE ONLY) ======= */}
+        {activeTab === "content" && (
+          <div className="bg-white border border-primary/5 rounded-xl p-5 shadow-xs mt-4">
+            <div className="flex items-center justify-between mb-3">
+              <h3 className="font-serif font-bold text-primary text-sm flex items-center gap-2">
+                <ImageIcon className="w-4 h-4 text-secondary" />
+                Welcome Photo (Host-Side Clean)
+              </h3>
+              <span className="text-[10px] text-on-surface-variant">
+                {content.welcome_photo ? "Current photo is set." : "No photo is set — the public page shows the background only."}
+              </span>
+            </div>
+            <div className="text-xs text-on-surface-variant space-y-3">
+              <div className="flex items-center gap-2 text-xs">
+                <span className="font-semibold text-primary">Current value:</span>
+                <span className="font-mono text-[11px] bg-surface px-2 py-1 rounded border border-border max-w-[260px] overflow-hidden text-ellipsis">
+                  {content.welcome_photo || "(empty)"}
+                </span>
+              </div>
+              <p className="text-[10px] text-on-surface-variant/60">
+                This clears the welcome photo on the live site only. The name,
+                title and photo frame stay visible, but the photo frame itself
+                will be shown only when you turn on Edit Mode. Nothing is lost:
+                you can upload a new one from the Content tab at any time.
+              </p>
+              <button
+                onClick={() => handleImageClear("welcome_photo")}
+                disabled={!content.welcome_photo}
+                className="text-xs bg-red-50 text-red-600 border border-red-100 hover:bg-red-100 px-4 py-2 rounded-lg transition-colors cursor-pointer disabled:opacity-40"
+              >
+                Clear current welcome photo (host-side)
+              </button>
+            </div>
+          </div>
+        )}
         {activeTab === "result-sheet" && (
           <div>
             <div className="flex items-center justify-between mb-6">

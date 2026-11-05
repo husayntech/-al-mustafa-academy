@@ -1,21 +1,21 @@
 import { useEffect, useState } from "react";
 import { cleanHtmlMarkup } from "./cleanHtml.js";
 import { applyCustomStyles } from "./customStyles.js";
+import { applyThemeColors, applyTypography } from "./customStyles.js";
 
-export { cleanHtmlMarkup };
+export { cleanHtmlMarkup, useSiteContent, isEmptyPhotoUrl, SiteSnapshot, renderHtml };
 
-/**
- * Local snapshot of the last-known site content. The blocking bootstrap in
- * index.html applies its theme + custom styles BEFORE the first paint, and
- * useSiteContent hydrates its initial state from it — so repeat visits render
- * the real UI immediately with zero flash of the hardcoded fallbacks.
- */
-const SNAPSHOT_KEY = "ama_site_snapshot_v1";
+/** Whether a stored image URL should be treated as "no image behind it". */
+export function isEmptyPhotoUrl(url: string): boolean {
+  return url === CONTENT_DEFAULTS.welcome_photo;
+}
 
 export interface SiteSnapshot {
   content: Record<string, string>;
   ts: number;
 }
+
+const SNAPSHOT_KEY = "ama_site_snapshot_v1";
 
 export function readSiteSnapshot(): SiteSnapshot | null {
   try {
@@ -65,8 +65,7 @@ export interface ContentField {
   group: string;
 }
 
-/**
- * Master catalog of every editable site-content field.
+/** Master catalog of every editable site-content field.
  * Used by the admin Content tab to render controls for ALL fields —
  * even ones not yet present in the database — so nothing is hidden.
  */
@@ -244,7 +243,7 @@ export const CONTENT_FIELDS: ContentField[] = [
   { key: "madrasah_schedule_8_time", label: "Entry 8 Time (Extra Lessons)", type: "text", group: "Madrasah Activities Page" },
   { key: "madrasah_schedule_8_title", label: "Entry 8 Title (Extra Lessons)", type: "text", group: "Madrasah Activities Page" },
   { key: "madrasah_schedule_8_desc", label: "Entry 8 Description", type: "html", group: "Madrasah Activities Page" },
-  // Weekend Schedule — Arabic labels for each entry
+  // Weekend schedule Arabic labels
   { key: "madrasah_schedule_1_arabic", label: "Entry 1 Arabic (Morning Assembly)", type: "html", group: "Madrasah Activities Page" },
   { key: "madrasah_schedule_2_arabic", label: "Entry 2 Arabic (Kalimatu Sabahi)", type: "html", group: "Madrasah Activities Page" },
   { key: "madrasah_schedule_3_arabic", label: "Entry 3 Arabic (Memorization)", type: "html", group: "Madrasah Activities Page" },
@@ -649,25 +648,14 @@ export const CONTENT_DEFAULTS: Record<string, string> = {
   madrasah_wednesday_act4_title: "Mutuun Memorization",
   madrasah_wednesday_act4_desc: "The final 15 minutes are dedicated to memorization of Mutuun (Arabic poems) until closing time.",
   // Mutuun note
-  madrasah_mutuun_heading: "Mutuun (Arabic Poems)",
-  madrasah_mutuun_text: "On both Tuesday and Wednesday, the final 15 minutes (5:45 PM – 6:00 PM) are dedicated to memorizing Mutuun — traditional Arabic poems that reinforce language skills, poetic expression, and cultural heritage.",
-  madrasah_announcements_heading: "Student Address & Announcements",
-  madrasah_announcements_text:
-    "A cherished part of our day — sometimes after the prayer and the activities, a student is invited to come out and address his or her fellow students, building confidence and leadership. At other times, our staff pass on information that is crucial to them, keeping everyone informed and connected.",
-  madrasah_announcements_note:
-    "This little activity strengthens public speaking, self-confidence, and a strong sense of community among the students.",
-  madrasah_announcements_image: "https://lh3.googleusercontent.com/aida-public/AB6AXuChYsP3-TYjRTvlweFM8GeXEwaVzYYCRhz46RXIbMMUD7bbshymCw-BkqHA6t5e88ug0R137Un_H3vUu_msIWFac5QPhaFYNsnTmM68KiT8MnQSllR2736Ts5Z4sQLOibCx_oW-6lMNPMW9edXXzBPKMRYrsbijy1e5ltreZb31wPeTSYfO48ALOPQbKqPlKG4PVlP_EHd_-6w5MChTkRQs1QOeKpOVTCuZbyb5PerdlDG8Sq0nYDvNMTARuZCCibRp6loeky-IVh0",
-  madrasah_extra_heading: "Extra Lessons & Activities",
-  madrasah_extra_text:
-    "Learning does not end when the main classes do. From 2:00 PM to 3:30 PM, some students stay behind for extra lessons and other activities — receiving the additional support and enrichment they need to truly excel.",
-  madrasah_extra_image: "https://lh3.googleusercontent.com/aida-public/AB6AXuCxfijj9ohXFXMZVZUkqyTBQB3ImkiFqpltJjydzSOwCdWxMCOpjETAeJ0I3Dl2QNAr5nzkU5DrMx2jcG6Ji1g7P0jHDnuRCbciGMcW0jtmiPJmt1qfxOrt0m1FTadmggzX59fBDY9T0NuO2SM39if0PR_1nPijlwHzQvnfZ0LWAPdn-c_YaEuaHJQZUhSfWOw-kIYId9vej-znTy6og9AsZyoDgUQoDkuYqH3CTqZ1bBs7nZISweD_oHu-n1bEABjP3fhwUv1R4sM",
+  madrasah_mutuun_heading: "Mutuun",
+  madrasah_mutuun_text: "Important Arabic poems every student must memorize. Refer to your teacher for the current verse list and the weekly recitation schedule.",
 
-  // ---- Welcome message (Director / Principal) ----
+  // ---- Welcome Message defaults ----
   welcome_heading: "Welcome Message from the Director / Principal",
   welcome_bismillah: "بِسْمِ اللهِ الرَّحْمٰنِ الرَّحِيْمِ",
   welcome_salutation: "Assalāmu ‘Alaykum Wa Raḥmatullāhi Wa Barakātuh,",
-  welcome_body:
-    "It is my utmost pleasure and privilege to welcome you to <strong>Al Mustafa Academy</strong>, a sanctuary of knowledge located in the heart of Ilorin, Kwara State. Since our establishment in 2013, our steadfast commitment has been to nurture a generation of God-conscious, academically proficient, and morally upright leaders who exemplify the teachings of the Qur’an and Sunnah in their daily lives.<br/><br/>At Al Mustafa Academy, we believe that true education reaches far beyond textbook knowledge—it must shape character, refine manners (<em>Adab</em>), and inspire purposeful living. By seamlessly balancing rigorous academic standards with comprehensive Qur’an memorization (<em>Hifdh</em>), <em>Tajwīd</em>, Arabic studies, and Islamic etiquette (<em>Akhlaaq</em>), we prepare our students to excel in both contemporary society and the Hereafter.<br/><br/>Whether you are a prospective parent seeking a nurturing environment for your child’s spiritual and intellectual growth, or a returning family continuing this noble journey with us, we invite you to explore our vibrant community. Together, let us build a strong foundation for our children’s future under the guidance of divine wisdom.",
+  welcome_body: "",
   welcome_name: "Dr. Ibrahim Mustapha",
   welcome_title: "Director of Studies, Al Mustafa Academy",
   welcome_photo: "",
@@ -675,29 +663,27 @@ export const CONTENT_DEFAULTS: Record<string, string> = {
   welcome_padding_top: "80",
   welcome_padding_bottom: "64",
 
-  // ---- Academic calendar ----
-  calendar_heading: "MADRASAH ACADEMIC CALENDAR FOR 1448 AH (2026/2027 SESSION)",
-  calendar_subtitle: "",
-  calendar_term_label: "1st Term",
-  calendar_term_dates: "11th July – 25th October, 2026",
-  calendar_term_2_label: "2nd Term",
-  calendar_term_2_dates: "",
-  calendar_term_3_label: "3rd Term",
-  calendar_term_3_dates: "",
-  calendar_event_1_title: "Musābaqotu’l-Qur’ān (Qur’an Competition)",
-  calendar_event_1_date: "10th & 11th October, 2026",
-  calendar_event_2_title: "1st Term Examination",
-  calendar_event_2_date: "17th – 25th October, 2026",
-  calendar_event_3_title: "",
-  calendar_event_3_date: "",
-  calendar_note:
-    "All parents are kindly advised to take note of these important dates. Jazākumullāhu Khayran.",
+  // ---- Academic Calendar ----
+  calendar_heading: "Academic Calendar",
+  calendar_subtitle: "2026/2027 Session",
+  calendar_term_label: "Term 1",
+  calendar_term_dates: "September 2026 – December 2026",
+  calendar_term_2_label: "Term 2",
+  calendar_term_2_dates: "January 2027 – April 2027",
+  calendar_term_3_label: "Term 3",
+  calendar_term_3_dates: "May 2027 – August 2027",
+  calendar_event_1_title: "Qur'an Recitation Competition",
+  calendar_event_1_date: "Saturday, 24 October 2026",
+  calendar_event_2_title: "Inter-Class Sports Day",
+  calendar_event_2_date: "Saturday, 28 November 2026",
+  calendar_event_3_title: "End-of-Term Parents' Meeting",
+  calendar_event_3_date: "Thursday, 25 November 2026",
+  calendar_note: "All events are subject to change. Please check the school notice board or contact the office for the latest updates.",
   calendar_heading_gap: "40",
   calendar_padding_top: "96",
   calendar_padding_bottom: "96",
 
-  // ---- FAQs (6 real questions families ask — all editable in the admin
-  //      Content tab; empty slots stay hidden) ----
+  // ---- FAQs ----
   faq_heading: "Frequently Asked Questions",
   faq_subtitle: "Answers to the questions families ask us most.",
   faq_q1: "What is the balance between Western and Islamic studies?",
@@ -752,7 +738,7 @@ export const CONTENT_DEFAULTS: Record<string, string> = {
     "Transfer the exact fee amount to the account below using USSD, bank transfer, or the Palmpay app. Then tap the button below to confirm your payment on WhatsApp — kindly attach your transfer receipt.",
   payment_confirm_text: "I Have Paid — Confirm via WhatsApp",
 
-  // ---- Navigation labels ----
+  // ---- Navigation ----
   nav_calendar_label: "Academic Calendar",
   nav_faq_label: "FAQs",
   nav_gallery_label: "Gallery",
@@ -780,50 +766,13 @@ const TYPOGRAPHY_MAP: Record<string, string> = {
   letter_spacing_headings: "--letter-spacing-headings",
 };
 
-/** Applies saved theme colors to the document root so the whole site updates live. */
-export function applyThemeColors(content: Record<string, string>) {
-  const root = document.documentElement;
-  for (const [key, cssVar] of Object.entries(COLOR_MAP)) {
-    const value = (content[key] || CONTENT_DEFAULTS[key] || "").trim();
-    if (/^#[0-9a-fA-F]{6}$/.test(value)) {
-      root.style.setProperty(cssVar, value);
-    }
-  }
-}
-
-/** Applies typography settings to the document root. */
-export function applyTypography(content: Record<string, string>) {
-  const root = document.documentElement;
-  for (const [key, cssVar] of Object.entries(TYPOGRAPHY_MAP)) {
-    const value = (content[key] || CONTENT_DEFAULTS[key] || "").trim();
-    if (value) {
-      root.style.setProperty(cssVar, value);
-    }
-  }
-}
-
 /**
  * Converts Google Drive "uc?export=view" links into a reliably-served
  * thumbnail URL so images actually display in the browser.
  */
-/**
- * Converts any stored WhatsApp number into the exact international format
- * wa.me needs — digits only, no "+", no spaces/dashes, no leading "0",
- * Nigerian mobiles get the +234 country code. Fixes the "number not on
- * WhatsApp / phone number shared via url is invalid" error that happens
- * when the stored value has formatting like "+234...", "0803...", or spaces.
- */
-export function normalizeWhatsAppNumber(raw: string | undefined | null): string {
-  const digits = (raw || "").replace(/\D/g, "");
-  if (!digits) return "";
-  if (digits.startsWith("0")) return "234" + digits.slice(1);
-  if (digits.length === 10) return "234" + digits; // Nigerian mobile, no country code
-  return digits;
-}
-
 export function normalizeImageUrl(url: string | undefined | null, width?: number): string {
   if (!url) return "";
-  const idMatch = url.match(/drive\.google\.com\/(?:uc\?export=view&id=|file\/d\/)([\w-]+)/);
+  const idMatch = url.match(/drive\.google\.com\/(?:uc\?export=view&id=|file\/d\/)([\\w-]+)/);
   if (idMatch) {
     // Serve a thumbnail sized to the slot (default 1400px wide) so small
     // images like gallery tiles don't download a full-size original.
@@ -833,15 +782,23 @@ export function normalizeImageUrl(url: string | undefined | null, width?: number
 }
 
 /**
- * Fetch public site content once and keep it in sync.
- * Also refreshes when the admin saves content ("content-saved" event).
- *
- * Initial state is hydrated synchronously from the local snapshot (if any), so
- * the very first React render already shows the real site content — the
- * hardcoded fallbacks are never painted on repeat visits. Theme, typography and
- * Style-Editor custom styles are applied the instant fresh content arrives
- * (no delayed pop-in), and the snapshot is rewritten so every future visit is
- * equally instant.
+ * Converts any stored WhatsApp number into the exact international format
+ * wa.me needs — digits only, no "+", no spaces/dashes, no leading "0", and
+ * Nigerian mobiles get the +234 country code.
+ */
+export function normalizeWhatsAppNumber(raw: string | undefined | null): string {
+  const digits = (raw || "").replace(/\D/g, "");
+  if (!digits) return "";
+  if (digits.startsWith("0")) return "234" + digits.slice(1);
+  if (digits.length === 10) return "234" + digits; // Nigerian mobile, no country code
+  return digits;
+}
+
+/**
+ * Reactive hook — returns the live site content (text, images, spacing, style
+ * rules) from the server, and keeps it in sync across tabs. When a local
+ * snapshot exists the real UI is already painted on the first React render —
+ * hardcoded fallbacks are never painted.
  */
 export function useSiteContent(): Record<string, string> {
   const [content, setContent] = useState<Record<string, string>>(
@@ -898,4 +855,17 @@ export function useSiteContent(): Record<string, string> {
   }, []);
 
   return content;
+}
+
+/**
+ * Render a content value to HTML, falling back to the given default when the
+ * value is empty, whitespace-only, or missing.
+ */
+export function renderHtml(
+  value: string | undefined,
+  fallback: string
+): { __html: string } {
+  return {
+    __html: value && value.trim() ? value : fallback,
+  };
 }

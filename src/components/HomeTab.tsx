@@ -98,7 +98,10 @@ export default function HomeTab({ onScreenChange }: HomeTabProps) {
       })()}
 
       {/* Hero Section */}
-      <section style={{ marginBottom: homeHeroBottomSpacing ? `${homeHeroBottomSpacing}px` : undefined }} className="relative h-[calc(100vh-4rem)] min-h-[650px] flex items-center justify-center text-center px-6 overflow-hidden bg-primary">
+      <section
+        style={{ marginBottom: homeHeroBottomSpacing ? `${homeHeroBottomSpacing}px` : undefined }}
+        className="relative h-[calc(100vh-4rem)] min-h-[650px] flex items-center justify-center text-center px-6 overflow-hidden bg-primary"
+      >
         <EditableImage
           contentKey="hero_image_url"
           label="Home Hero Background"
@@ -155,6 +158,7 @@ export default function HomeTab({ onScreenChange }: HomeTabProps) {
           >
             <rect x="45" y="45" width="110" height="110" />
             <rect x="45" y="45" width="110" height="110" transform="rotate(45 100 100)" />
+            <circle cx="100" cy="100" r="10" fill="currentColor" stroke="none" />
           </svg>
         </div>
 
@@ -237,7 +241,7 @@ export default function HomeTab({ onScreenChange }: HomeTabProps) {
         className="px-6 max-w-7xl mx-auto relative scroll-mt-16"
       >
         <div className="islamic-pattern absolute inset-0 z-0 opacity-[0.035]" />
-        
+
         <div className="relative z-10">
           <div className="flex flex-col items-center text-center" style={{ marginBottom: `${homeMissionHeadingGap}px` }}>
             <div className="w-16 h-1 bg-secondary rounded-full mb-6" />

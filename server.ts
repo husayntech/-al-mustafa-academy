@@ -2019,6 +2019,29 @@ app.put("/api/admin/content", authMiddleware, adminMiddleware, async (req: Authe
   }
 });
 
+/**
+ * Public-purpose deletion: clears the live value of a site-content key.
+ * (In production this is Vercel/Postgres; locally it maps to the same table.)
+ */
+app.put("/api/content/delete", async (req: Request, res: Response) => {
+  try {
+    const { key } = req.body as { key?: string };
+    if (!key || typeof key !== "string") {
+      return res.status(400).json({ error: "Key is required" });
+    }
+    const existing = await queryOne("SELECT id FROM site_content WHERE content_key = $1", [key]);
+    if (existing) {
+      await execute("DELETE FROM site_content WHERE content_key = $1", [key]);
+    }
+    // The public route never returns the deleted key, so any page that
+    // renders with an empty fallback keeps showing the empty frame, not a
+    // leftover value stored under a different key.
+    res.json({ message: "Content cleared" });
+  } catch (error: any) {
+    res.status(500).json({ error: "Failed to clear content" });
+  }
+});
+
 // Public content route (no auth)
 app.get("/api/content", async (req: Request, res: Response) => {
   try {

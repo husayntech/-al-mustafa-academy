@@ -12,6 +12,7 @@ import EditableText from "./EditableText";
 export default function WelcomeSection() {
   const siteContent = useSiteContent();
   const photo = normalizeImageUrl(siteContent.welcome_photo || "");
+  const isEmpty = isEmptyPhotoUrl(siteContent.welcome_photo || "");
   const renderHtml = (value: string | undefined, fallback: string) => ({
     __html: value && value.trim() ? value : fallback,
   });
@@ -109,34 +110,37 @@ export default function WelcomeSection() {
           </div>
 
           <div className="mt-9 flex flex-col sm:flex-row items-center gap-5 border-t border-primary/10 pt-7">
-            {photo ? (
-              <EditableImage
-                contentKey="welcome_photo"
-                label="Welcome: Director Photo"
+          {/* Frame always shows. With no live photo it shows a clean empty
+              frame (dashed border) — admins in Edit Mode can swap anything in,
+              including emptying the frame again. */}
+          {photo ? (
+            <EditableImage
+              contentKey="welcome_photo"
+              label="Welcome: Director Photo"
+              src={photo}
+              alt="Director of Studies, Al Mustafa Academy"
+              className="relative shrink-0"
+            >
+              <img
                 src={photo}
                 alt="Director of Studies, Al Mustafa Academy"
-                className="relative shrink-0"
-              >
-                <img
-                  src={photo}
-                  alt="Director of Studies, Al Mustafa Academy"
-                  className="w-20 h-20 rounded-full object-cover border-2 border-secondary shadow-md"
-                  onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }}
-                />
-              </EditableImage>
-            ) : (
-              <EditableImage
-                contentKey="welcome_photo"
-                label="Welcome: Director Photo"
-                src=""
-                alt="Director of Studies, Al Mustafa Academy"
-                className="relative shrink-0"
-              >
-                <div className="w-20 h-20 rounded-full bg-primary/10 border-2 border-secondary flex items-center justify-center text-primary font-serif font-bold text-xl">
-                  {initials || "IM"}
-                </div>
-              </EditableImage>
-            )}
+                className="w-20 h-20 rounded-full object-cover border-2 border-secondary shadow-md"
+                onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }}
+              />
+            </EditableImage>
+          ) : (
+            <EditableImage
+              contentKey="welcome_photo"
+              label="Welcome: Director Photo"
+              src=""
+              alt="Director of Studies, Al Mustafa Academy"
+              className="relative shrink-0"
+            >
+              <div className="w-20 h-20 rounded-full border-2 border-dashed border-primary/40 bg-white flex items-center justify-center text-primary font-serif font-bold text-xl">
+                {initials || "IM"}
+              </div>
+            </EditableImage>
+          )}
             <div className="text-center sm:text-left">
               <p className="font-serif text-lg font-bold text-primary">
                 <EditableText
@@ -149,6 +153,24 @@ export default function WelcomeSection() {
                   <span>{name}</span>
                 </EditableText>
               </p>
+              {isEmpty && editModeOn && (
+                <div className="flex-1 min-w-[160px] sm:min-w-0">
+                  <EditableImage
+                    contentKey="welcome_photo"
+                    label="Welcome: Director Photo"
+                    src=""
+                    alt="Director of Studies, Al Mustafa Academy"
+                    className="relative shrink-0"
+                  >
+                    <div className="w-20 h-20 rounded-full border-2 border-dashed border-red-400 bg-red-50 flex flex-col items-center justify-center">
+                      <div className="w-8 h-8 rounded-full bg-red-100 flex items-center justify-center text-red-500 mb-1">
+                        <X className="w-4 h-4" />
+                      </div>
+                      <span className="text-[10px] font-semibold text-red-400">Remove photo</span>
+                    </div>
+                  </EditableImage>
+                </div>
+              )}
               <p className="text-sm text-on-surface-variant mt-0.5">
                 <EditableText
                   contentKey="welcome_title"
