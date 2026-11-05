@@ -7,7 +7,6 @@ import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
 import nodemailer from "nodemailer";
 import { initDatabase, queryAll, queryOne, execute } from "./db.js";
-import { RESULT_SHEET_DEFAULTS } from "./src/lib/resultSheetConfig.js";
 import { cleanHtmlMarkup } from "./src/lib/cleanHtml.js";
 import { fileURLToPath } from "url";
 import os from "os";
@@ -675,9 +674,8 @@ app.put("/api/subjects/:id", authMiddleware, async (req: AuthenticatedRequest, r
 // "delete everything" action silently deletes nothing while reporting success.
 app.delete("/api/subjects/all", authMiddleware, adminMiddleware, async (req: AuthenticatedRequest, res: Response) => {
   try {
-    await execute("DELETE FROM results");
     await execute("DELETE FROM subjects");
-    res.json({ message: "All subjects and their results deleted" });
+    res.json({ message: "All subjects deleted" });
   } catch (error: any) {
     console.error("Delete all subjects error:", error);
     res.status(500).json({ error: "Failed to delete subjects" });
@@ -738,14 +736,9 @@ app.delete("/api/classes/:classId/subjects/all", authMiddleware, async (req: Aut
         return res.status(403).json({ error: "You are not assigned to this class" });
       }
     }
-    // Delete results for students in this class
-    await execute(
-      "DELETE FROM results WHERE student_id IN (SELECT id FROM students WHERE class_id = $1)",
-      [classId]
-    );
     // Delete subjects for this class
     await execute("DELETE FROM subjects WHERE class_id = $1", [classId]);
-    res.json({ message: "All subjects and results for this class deleted" });
+    res.json({ message: "All subjects for this class deleted" });
   } catch (error: any) {
     console.error("Delete class subjects error:", error);
     res.status(500).json({ error: "Failed to delete subjects" });
@@ -760,7 +753,7 @@ app.get("/api/classes/:classId/students", authMiddleware, async (req: Authentica
       return res.status(403).json({ error: "You are not assigned to this class" });
     }
     const students = await queryAll(
-      `SELECT s.*, (SELECT COUNT(*) FROM results r WHERE r.student_id = s.id) as result_count FROM students s WHERE s.class_id = $1 ORDER BY s.full_name ASC`,
+      `SELECT s.* FROM students s WHERE s.class_id = $1 ORDER BY s.full_name ASC`,
       [classId]
     );
     res.json({ students });
@@ -822,7 +815,6 @@ app.put("/api/students/:id", authMiddleware, async (req: AuthenticatedRequest, r
 // Literal "/all" route is declared before "/:id" (see note in the subjects routes)
 app.delete("/api/students/all", authMiddleware, adminMiddleware, async (req: AuthenticatedRequest, res: Response) => {
   try {
-    await execute("DELETE FROM results");
     await execute("DELETE FROM students");
     res.json({ message: "All students deleted" });
   } catch (error: any) {
@@ -840,122 +832,6 @@ app.delete("/api/students/:id", authMiddleware, adminMiddleware, async (req: Aut
     res.json({ message: "Student deleted successfully" });
   } catch (error: any) {
     res.status(500).json({ error: "Failed to delete student" });
-  }
-});
-
-// --- Result Routes ---
-app.get("/api/students/:studentId/results", authMiddleware, async (req: AuthenticatedRequest, res: Response) => {
-  try {
-    const student = await queryOne("SELECT class_id FROM students WHERE id = $1", [parseInt(req.params.studentId)]);
-    if (!student) return res.status(404).json({ error: "Student not found" });
-    if (!(await hasClassAccess(req.user, student.class_id))) {
-      return res.status(403).json({ error: "You are not assigned to this student's class" });
-    }
-    const results = await queryAll(
-      `SELECT r.*, sub.name as subject_name, sub.book_name 
-       FROM results r 
-       JOIN subjects sub ON r.subject_id = sub.id 
-       WHERE r.student_id = $1 
-       ORDER BY r.term ASC, sub.name ASC`,
-      [parseInt(req.params.studentId)]
-    );
-    res.json({ results });
-  } catch (error: any) {
-    res.status(500).json({ error: "Failed to fetch results" });
-  }
-});
-
-app.post("/api/results", authMiddleware, async (req: AuthenticatedRequest, res: Response) => {
-  try {
-    const { student_id, subject_id, term, year, test_score, exam_score, ca1_score, ca2_score, ca3_score, remarks } = req.body;
-
-    // Teachers can only save results for students in their assigned classes
-    const student = await queryOne("SELECT class_id FROM students WHERE id = $1", [student_id]);
-    if (!student) return res.status(404).json({ error: "Student not found" });
-    if (!(await hasClassAccess(req.user, student.class_id))) {
-      return res.status(403).json({ error: "You are not assigned to this student's class" });
-    }
-
-    // Check if result already exists
-    const existing = await queryOne(
-      "SELECT id FROM results WHERE student_id = $1 AND subject_id = $2 AND term = $3 AND year = $4",
-      [student_id, subject_id, term, year]
-    );
-
-    const ts = test_score !== undefined && test_score !== null && test_score !== '' ? parseFloat(test_score) : null;
-    const es = exam_score !== undefined && exam_score !== null && exam_score !== '' ? parseFloat(exam_score) : null;
-    const ca1 = ca1_score !== undefined && ca1_score !== null && ca1_score !== '' ? parseFloat(ca1_score) : null;
-    const ca2 = ca2_score !== undefined && ca2_score !== null && ca2_score !== '' ? parseFloat(ca2_score) : null;
-    const ca3 = ca3_score !== undefined && ca3_score !== null && ca3_score !== '' ? parseFloat(ca3_score) : null;
-
-    if (existing) {
-      await execute(
-        "UPDATE results SET test_score = $1, exam_score = $2, ca1_score = $3, ca2_score = $4, ca3_score = $5, remarks = $6 WHERE id = $7",
-        [ts, es, ca1, ca2, ca3, remarks || null, existing.id]
-      );
-      res.json({ id: existing.id, message: "Result updated successfully" });
-    } else {
-      const id = await execute(
-        "INSERT INTO results (student_id, subject_id, term, year, test_score, exam_score, ca1_score, ca2_score, ca3_score, remarks) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)",
-        [student_id, subject_id, term, year, ts, es, ca1, ca2, ca3, remarks || null]
-      );
-      res.json({ id, message: "Result saved successfully" });
-    }
-  } catch (error: any) {
-    console.error("Result save error:", error);
-    res.status(500).json({ error: "Failed to save result" });
-  }
-});
-
-// Bulk save results
-app.post("/api/results/bulk", authMiddleware, async (req: AuthenticatedRequest, res: Response) => {
-  try {
-    const { results } = req.body;
-    if (!Array.isArray(results)) {
-      return res.status(400).json({ error: "Results array is required" });
-    }
-
-    // Teachers can only bulk-save results for students in their assigned classes
-    if (req.user?.role === "teacher" && !req.user?.is_admin) {
-      const studentIds = [...new Set(results.map((r: any) => r.student_id))];
-      for (const sid of studentIds) {
-        const st = await queryOne("SELECT class_id FROM students WHERE id = $1", [sid]);
-        if (!st) return res.status(404).json({ error: "Student not found" });
-        if (!(await hasClassAccess(req.user, st.class_id))) {
-          return res.status(403).json({ error: "You are not assigned to this student's class" });
-        }
-      }
-    }
-
-    for (const r of results) {
-      const { student_id, subject_id, term, year, test_score, exam_score, ca1_score, ca2_score, ca3_score, remarks } = r;
-      const ts = test_score !== undefined && test_score !== null && test_score !== '' ? parseFloat(test_score) : null;
-      const es = exam_score !== undefined && exam_score !== null && exam_score !== '' ? parseFloat(exam_score) : null;
-      const ca1 = ca1_score !== undefined && ca1_score !== null && ca1_score !== '' ? parseFloat(ca1_score) : null;
-      const ca2 = ca2_score !== undefined && ca2_score !== null && ca2_score !== '' ? parseFloat(ca2_score) : null;
-      const ca3 = ca3_score !== undefined && ca3_score !== null && ca3_score !== '' ? parseFloat(ca3_score) : null;
-      const existing = await queryOne(
-        "SELECT id FROM results WHERE student_id = $1 AND subject_id = $2 AND term = $3 AND year = $4",
-        [student_id, subject_id, term, year]
-      );
-
-      if (existing) {
-        await execute(
-          "UPDATE results SET test_score = $1, exam_score = $2, ca1_score = $3, ca2_score = $4, ca3_score = $5, remarks = $6 WHERE id = $7",
-          [ts, es, ca1, ca2, ca3, remarks || null, existing.id]
-        );
-      } else {
-        await execute(
-          "INSERT INTO results (student_id, subject_id, term, year, test_score, exam_score, ca1_score, ca2_score, ca3_score, remarks) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)",
-          [student_id, subject_id, term, year, ts, es, ca1, ca2, ca3, remarks || null]
-        );
-      }
-    }
-
-    res.json({ message: `${results.length} results saved successfully` });
-  } catch (error: any) {
-    console.error("Bulk result save error:", error);
-    res.status(500).json({ error: "Failed to save results" });
   }
 });
 
@@ -1494,6 +1370,27 @@ function adminMiddleware(req: AuthenticatedRequest, res: Response, next: NextFun
   next();
 }
 
+// --- Development-only: set is_admin for a user (one-time admin-flag fix) ---
+// Only enabled when ADMIN_FIX_TOKEN is set, so it stays off in production.
+app.post("/api/admin/fix-admin", authMiddleware, async (req: Request, res: Response) => {
+  if (process.env.NODE_ENV === "production") {
+    return res.status(403).json({ error: "This route is disabled in production" });
+  }
+  const token = req.headers["x-admin-fix-token"] as string | undefined;
+  if (!token || token !== process.env.ADMIN_FIX_TOKEN) {
+    return res.status(401).json({ error: "Invalid or missing admin fix token" });
+  }
+  const { userId } = req.body;
+  if (!userId) return res.status(400).json({ error: "userId is required" });
+  try {
+    await execute("UPDATE users SET is_admin = 1 WHERE id = $1", [userId]);
+    res.json({ message: "is_admin set to 1 successfully" });
+  } catch (error: any) {
+    console.error("Fix admin error:", error);
+    res.status(500).json({ error: "Failed to set is_admin" });
+  }
+});
+
 // List all users
 app.get("/api/admin/users", authMiddleware, adminMiddleware, async (req: AuthenticatedRequest, res: Response) => {
   try {
@@ -1578,18 +1475,35 @@ app.put("/api/admin/users/:id", authMiddleware, adminMiddleware, async (req: Aut
     const { full_name, surname, first_name, middle_name, username, role, is_admin, phone, email, address, password } = req.body;
     const composedName = composeFullName({ first_name, middle_name, surname }, full_name);
     const userId = parseInt(req.params.id);
+    const paramNames = [
+      'full_name', 'surname', 'first_name', 'middle_name', 'role', 'is_admin', 'phone', 'email', 'address'
+    ];
+    const values = [
+      composedName,
+      surname?.trim() || null,
+      first_name?.trim() || null,
+      middle_name?.trim() || null,
+      role,
+      is_admin ? 1 : 0,
+      phone || null,
+      email || null,
+      address || null,
+    ];
+    if (username) {
+      values.push(username);
+      paramNames.push('username');
+    }
     if (password) {
       const passwordHash = bcrypt.hashSync(password, 10);
-      await execute(
-        "UPDATE users SET full_name = $1, surname = $2, first_name = $3, middle_name = $4, username = $5, role = $6, is_admin = $7, phone = $8, email = $9, address = $10, password_hash = $11 WHERE id = $12",
-        [composedName, surname?.trim() || null, first_name?.trim() || null, middle_name?.trim() || null, username, role, is_admin ? 1 : 0, phone || null, email || null, address || null, passwordHash, userId]
-      );
-    } else {
-      await execute(
-        "UPDATE users SET full_name = $1, surname = $2, first_name = $3, middle_name = $4, username = $5, role = $6, is_admin = $7, phone = $8, email = $9, address = $10 WHERE id = $11",
-        [composedName, surname?.trim() || null, first_name?.trim() || null, middle_name?.trim() || null, username, role, is_admin ? 1 : 0, phone || null, email || null, address || null, userId]
-      );
+      values.push(passwordHash);
+      paramNames.push('password_hash');
     }
+    values.push(userId);
+    const setClauses = paramNames.map((col, i) => `${col} = $${i + 1}`).join(', ');
+    await execute(
+      `UPDATE users SET ${setClauses} WHERE id = $${values.length}`,
+      values
+    );
     res.json({ message: "User updated successfully" });
   } catch (error: any) {
     res.status(500).json({ error: "Failed to update user" });
@@ -1621,54 +1535,6 @@ app.put("/api/admin/classes/:id", authMiddleware, adminMiddleware, async (req: A
     res.json({ message: "Class updated successfully" });
   } catch (error: any) {
     res.status(500).json({ error: "Failed to update class" });
-  }
-});
-
-// --- Admin Result Sheet Config ---
-app.get("/api/admin/result-sheet-config", authMiddleware, adminMiddleware, async (req: AuthenticatedRequest, res: Response) => {
-  try {
-    const rows = await queryAll("SELECT config_key, config_value FROM result_sheet_config");
-    const config: Record<string, string> = {};
-    for (const r of rows) {
-      config[r.config_key as string] = r.config_value as string;
-    }
-    res.json({ config });
-  } catch (error: any) {
-    res.status(500).json({ error: "Failed to fetch config" });
-  }
-});
-
-app.put("/api/admin/result-sheet-config", authMiddleware, adminMiddleware, async (req: AuthenticatedRequest, res: Response) => {
-  try {
-    const { updates } = req.body;
-    if (!updates || typeof updates !== "object") {
-      return res.status(400).json({ error: "Updates object is required" });
-    }
-    for (const [key, value] of Object.entries(updates)) {
-      const existing = await queryOne("SELECT id FROM result_sheet_config WHERE config_key = $1", [key]);
-      if (existing) {
-        await execute("UPDATE result_sheet_config SET config_value = $1 WHERE config_key = $2", [value as string, key]);
-      } else {
-        await execute("INSERT INTO result_sheet_config (config_key, config_value) VALUES ($1, $2)", [key, value as string]);
-      }
-    }
-    res.json({ message: "Config updated successfully" });
-  } catch (error: any) {
-    res.status(500).json({ error: "Failed to update config" });
-  }
-});
-
-// Public result-sheet config read (used by the result sheet renderer on both portals)
-app.get("/api/result-sheet-config", async (req: Request, res: Response) => {
-  try {
-    const rows = await queryAll("SELECT config_key, config_value FROM result_sheet_config");
-    const config: Record<string, string> = { ...RESULT_SHEET_DEFAULTS };
-    for (const r of rows) {
-      config[r.config_key as string] = r.config_value as string;
-    }
-    res.json({ config });
-  } catch (error: any) {
-    res.status(500).json({ error: "Failed to fetch config" });
   }
 });
 
@@ -1742,53 +1608,6 @@ app.put("/api/students/:id/class", authMiddleware, async (req: AuthenticatedRequ
     res.json({ message: "Student moved successfully" });
   } catch (error: any) {
     res.status(500).json({ error: "Failed to move student" });
-  }
-});
-
-// Export class data as CSV
-app.get("/api/classes/:classId/export/csv", authMiddleware, async (req: AuthenticatedRequest, res: Response) => {
-  try {
-    const classId = parseInt(req.params.classId);
-    if (!(await hasClassAccess(req.user, classId))) {
-      return res.status(403).json({ error: "You are not assigned to this class" });
-    }
-    const classInfo = await queryOne("SELECT name FROM classes WHERE id = $1", [classId]);
-    const subjects = await queryAll("SELECT * FROM subjects WHERE class_id = $1 ORDER BY id", [classId]);
-    const students = await queryAll("SELECT * FROM students WHERE class_id = $1 ORDER BY full_name ASC", [classId]);
-
-    let csv = `Class,${classInfo?.name || "Unknown"}\n`;
-    csv += `Total Students,${students.length}\n`;
-    csv += `Subjects,"${subjects.map((s: any) => s.name).join(", ")}"\n\n`;
-
-    csv += "Student Name";
-    const termLabels = ["T1", "T2", "T3"];
-    for (const subj of subjects) {
-      for (const tl of termLabels) {
-        csv += `,"${(subj as any).name} ${tl} (Test/30)","${(subj as any).name} ${tl} (Exam/70)","${(subj as any).name} ${tl} (Total/100)","${(subj as any).name} ${tl} (Remarks)"`;
-      }
-    }
-    csv += "\n";
-
-    const allTerms = [1, 2, 3];
-    for (const student of students) {
-      csv += `"${(student as any).full_name}"`;
-      for (const subj of subjects) {
-        for (const term of allTerms) {
-          const result = await queryOne(
-            "SELECT test_score, exam_score, total_score, remarks FROM results WHERE student_id = $1 AND subject_id = $2 AND term = $3",
-            [(student as any).id, (subj as any).id, term]
-          );
-          csv += `,${result?.test_score ?? ""},${result?.exam_score ?? ""},${result?.total_score ?? ""},${result?.remarks ?? ""}`;
-        }
-      }
-      csv += "\n";
-    }
-
-    res.setHeader("Content-Type", "text/csv");
-    res.setHeader("Content-Disposition", `attachment; filename="${classInfo?.name || "class"}_results.csv"`);
-    res.send(csv);
-  } catch (error: any) {
-    res.status(500).json({ error: "Failed to export data" });
   }
 });
 
@@ -1954,21 +1773,12 @@ app.post("/api/auth/student-login", async (req: Request, res: Response) => {
   }
 });
 
-// Get student results (for student portal)
-app.get("/api/student/my-results", authMiddleware, async (req: AuthenticatedRequest, res: Response) => {
+// Student portal overview (term reports + attendance)
+app.get("/api/student/overview", authMiddleware, async (req: AuthenticatedRequest, res: Response) => {
   try {
     if (req.user?.type !== "student") {
       return res.status(403).json({ error: "Student access required" });
     }
-    const results = await queryAll(
-      `SELECT r.*, sub.name as subject_name, sub.book_name 
-       FROM results r 
-       JOIN subjects sub ON r.subject_id = sub.id 
-       WHERE r.student_id = $1 
-       ORDER BY r.term ASC, sub.name ASC`,
-      [req.user.id]
-    );
-    const subjects = await queryAll("SELECT * FROM subjects WHERE class_id = $1 ORDER BY id", [req.user.class_id]);
     const termReports = await queryAll(
       "SELECT * FROM student_term_reports WHERE student_id = $1 ORDER BY term ASC",
       [req.user.id]
@@ -1977,9 +1787,9 @@ app.get("/api/student/my-results", authMiddleware, async (req: AuthenticatedRequ
       `SELECT status, CAST(COUNT(*) AS INTEGER) as count FROM attendance WHERE student_id = $1 GROUP BY status`,
       [req.user.id]
     );
-    res.json({ results, subjects, termReports, attendance });
+    res.json({ termReports, attendance });
   } catch (error: any) {
-    res.status(500).json({ error: "Failed to fetch results" });
+    res.status(500).json({ error: "Failed to fetch student overview" });
   }
 });
 

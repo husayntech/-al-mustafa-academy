@@ -1,13 +1,6 @@
-import React, { useState, useEffect } from "react";
+import React, { useState } from "react";
 import { motion } from "motion/react";
-import { LogIn, School, User, Eye, EyeOff, ArrowLeft, Download, BookOpen, GraduationCap, Loader2 } from "lucide-react";
-import { Result } from "../../types";
-import {
-  fetchResultSheetConfig,
-  buildResultSheetData,
-  renderSheetToPDF,
-} from "../../lib/resultSheet";
-import { RESULT_SHEET_DEFAULTS } from "../../lib/resultSheetConfig";
+import { LogIn, User, Eye, EyeOff, ArrowLeft, BookOpen, GraduationCap } from "lucide-react";
 import { normalizeImageUrl } from "../../lib/siteContent";
 
 interface StudentData {
@@ -26,38 +19,8 @@ interface StudentData {
   class_id: number;
 }
 
-interface StudentResult {
-  id: number;
-  subject_id?: number;
-  subject_name: string;
-  term: number;
-  year?: string;
-  test_score: number | null;
-  exam_score: number | null;
-  total_score: number | null;
-  remarks: string | null;
-}
-
-interface Subject {
-  id: number;
-  name: string;
-}
-
 interface StudentLoginProps {
   onBack?: () => void;
-}
-
-const GRADING_SCALE = [
-  { grade: "A", min: 80, max: 100, remark: "Excellent" },
-  { grade: "B", min: 65, max: 79, remark: "Very Good" },
-  { grade: "C", min: 50, max: 64, remark: "Credit / Good" },
-  { grade: "P", min: 40, max: 49, remark: "Pass" },
-  { grade: "F", min: 0, max: 39, remark: "Fail" },
-];
-
-function calcGrade(total: number): string {
-  const entry = GRADING_SCALE.find((g) => total >= g.min && total <= g.max);
-  return entry?.grade || "F";
 }
 
 export default function StudentLogin({ onBack }: StudentLoginProps) {
@@ -66,12 +29,8 @@ export default function StudentLogin({ onBack }: StudentLoginProps) {
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
-  const [exporting, setExporting] = useState(false);
   const [token, setToken] = useState<string | null>(null);
   const [student, setStudent] = useState<StudentData | null>(null);
-  const [results, setResults] = useState<StudentResult[]>([]);
-  const [subjects, setSubjects] = useState<Subject[]>([]);
-  const [selectedTerm, setSelectedTerm] = useState(1);
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -98,7 +57,7 @@ export default function StudentLogin({ onBack }: StudentLoginProps) {
 
       setToken(data.token);
       setStudent(data.student);
-      fetchResults(data.token);
+      fetchOverview(data.token);
     } catch (err) {
       setError("Connection error. Please try again.");
     } finally {
@@ -107,99 +66,27 @@ export default function StudentLogin({ onBack }: StudentLoginProps) {
   };
 
   const [termReports, setTermReports] = useState<any[]>([]);
-  const [attendanceSummary, setAttendanceSummary] = useState<{ status: string; count: number }[]>([]);
-
-  const fetchResults = async (authToken: string) => {
+  const [attendanceSummary, setAttendanceSummary] = useState<{ status: string; count: number }[]>([]);  const fetchOverview = async (authToken: string) => {
     try {
-      const res = await fetch("/api/student/my-results", {
+      const res = await fetch("/api/student/overview", {
         headers: { Authorization: `Bearer ${authToken}` },
       });
       const data = await res.json();
-      setResults(data.results || []);
-      setSubjects(data.subjects || []);
       setTermReports(data.termReports || []);
       setAttendanceSummary(data.attendance || []);
     } catch (err) {
-      console.error("Failed to fetch results:", err);
+      console.error("Failed to fetch student overview:", err);
     }
   };
 
   const handleLogout = () => {
     setToken(null);
     setStudent(null);
-    setResults([]);
-    setSubjects([]);
     setSurname("");
-  };
-
-  const getTermResults = () => results.filter((r) => r.term === selectedTerm);
-
-  const getGrandTotal = () => {
-    const termResults = getTermResults();
-    return termResults.reduce((sum, r) => sum + (r.total_score || 0), 0);
-  };
-
-  const getOverallGrade = () => {
-    const termResults = getTermResults();
-    const total = getGrandTotal();
-    const maxTotal = termResults.length * 100;
-    if (maxTotal === 0) return "-";
-    const avg = Math.round((total / maxTotal) * 100);
-    return calcGrade(avg);
-  };
-
-  const handleDownloadPDF = async () => {
-    if (!student) return;
-    setExporting(true);
-    try {
-      const config = await fetchResultSheetConfig();
-      const termResults = getTermResults();
-      const resultsData: Result[] = termResults.map((r) => ({
-        id: r.id,
-        student_id: student.id,
-        subject_id: r.subject_id || 0,
-        term: selectedTerm,
-        year: r.year || "",
-        test_score: r.test_score,
-        exam_score: r.exam_score,
-        total_score: r.total_score,
-        remarks: r.remarks,
-        created_at: "",
-        subject_name: r.subject_name,
-        book_name: "",
-      }));
-
-      const data = buildResultSheetData({
-        config,
-        studentName: student.full_name,
-        className: student.class_name,
-        subjects: subjects.map((s) => ({
-          id: s.id,
-          class_id: student.class_id,
-          name: s.name,
-          book_name: "",
-          book_author: "",
-        })),
-        results: resultsData,
-        term: selectedTerm,
-        academicYear: "",
-      });
-
-      await renderSheetToPDF(
-        config.result_sheet_template || RESULT_SHEET_DEFAULTS.result_sheet_template,
-        data,
-        `${student.full_name.replace(/\s+/g, "_")}_Term${selectedTerm}_Results.pdf`
-      );
-    } catch (err) {
-      console.error("PDF generation failed:", err);
-    } finally {
-      setExporting(false);
-    }
   };
 
   // Logged in view
   if (token && student) {
-    const termResults = getTermResults();
     return (
       <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="min-h-screen bg-background">
         <div className="bg-primary text-white px-6 py-4">
@@ -290,88 +177,7 @@ export default function StudentLogin({ onBack }: StudentLoginProps) {
             </div>
 
             <div className="p-5">
-              <h3 className="font-serif text-base font-bold text-primary mb-3">My Results</h3>
-              <div className="flex gap-2 mb-4">
-                {[1, 2, 3].map((t) => (
-                  <button key={t} onClick={() => setSelectedTerm(t)}
-                    className={`px-4 py-2 rounded-lg text-xs font-semibold cursor-pointer transition-all ${
-                      selectedTerm === t ? "bg-primary text-white shadow" : "bg-surface-container text-on-surface-variant hover:bg-surface-container-high"
-                    }`}>
-                    Term {t}
-                  </button>
-                ))}
-              </div>
-
-              {termResults.length === 0 ? (
-                <div className="text-center py-10">
-                  <BookOpen className="w-12 h-12 text-on-surface-variant/20 mx-auto mb-3" />
-                  <p className="text-sm text-on-surface-variant">No results recorded for this term yet</p>
-                </div>
-              ) : (
-                <div className="overflow-x-auto">
-                  <table className="w-full text-xs">
-                    <thead>
-                      <tr className="bg-primary text-white">
-                        <th className="text-left py-2.5 px-3 font-semibold">Subject</th>
-                        <th className="text-center py-2.5 px-2 font-semibold">Test (30)</th>
-                        <th className="text-center py-2.5 px-2 font-semibold">Exam (70)</th>
-                        <th className="text-center py-2.5 px-2 font-semibold">Total</th>
-                        <th className="text-center py-2.5 px-2 font-semibold">Grade</th>
-                        <th className="text-center py-2.5 px-2 font-semibold">Remarks</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-primary/5">
-                      {termResults.map((r) => (
-                        <tr key={r.id} className="hover:bg-surface-container-low transition-colors">
-                          <td className="py-2.5 px-3 text-primary font-medium">{r.subject_name}</td>
-                          <td className="py-2.5 px-2 text-center">{r.test_score ?? "-"}</td>
-                          <td className="py-2.5 px-2 text-center">{r.exam_score ?? "-"}</td>
-                          <td className="py-2.5 px-2 text-center font-bold">{r.total_score ?? "-"}</td>
-                          <td className={`py-2.5 px-2 text-center font-bold ${
-                            r.total_score && calcGrade(r.total_score) === "A" ? "text-green-600" :
-                            r.total_score && calcGrade(r.total_score) === "F" ? "text-red-600" :
-                            "text-primary"
-                          }`}>{r.total_score ? calcGrade(r.total_score) : "-"}</td>
-                          <td className="py-2.5 px-2 text-center">{r.remarks || "-"}</td>
-                        </tr>
-                      ))}
-                    </tbody>
-                    <tfoot>
-                      <tr className="bg-secondary-fixed/10 font-bold">
-                        <td className="py-2.5 px-3 text-primary">GRAND TOTAL</td>
-                        <td />
-                        <td />
-                        <td className="py-2.5 px-2 text-center text-primary">
-                          {getGrandTotal()} / {termResults.length * 100}
-                        </td>
-                        <td className="py-2.5 px-2 text-center text-primary">{getOverallGrade()}</td>
-                        <td />
-                      </tr>
-                    </tfoot>
-                  </table>
-                </div>
-              )}
-
-              {/* Grading Scale */}
-              <div className="mt-5 bg-surface-container-low rounded-lg p-3">
-                <p className="text-[10px] font-bold text-primary uppercase tracking-wider mb-2">Grading Scale</p>
-                <div className="grid grid-cols-3 sm:grid-cols-6 gap-1.5">
-                  {GRADING_SCALE.map((g) => (
-                    <div key={g.grade} className={`text-center p-1.5 rounded ${
-                      g.grade === "A" ? "bg-green-50" :
-                      g.grade === "F" ? "bg-red-50" :
-                      "bg-white"
-                    }`}>
-                      <p className={`text-sm font-bold ${
-                        g.grade === "A" ? "text-green-600" :
-                        g.grade === "F" ? "text-red-600" :
-                        "text-primary"
-                      }`}>{g.grade}</p>
-                      <p className="text-[8px] text-on-surface-variant">{g.min}-{g.max}</p>
-                    </div>
-                  ))}
-                </div>
-              </div>
+              <h3 className="font-serif text-base font-bold text-primary mb-3">Attendance & Reports</h3>
 
               {/* Attendance Summary */}
               {attendanceSummary.length > 0 && (
@@ -388,13 +194,14 @@ export default function StudentLogin({ onBack }: StudentLoginProps) {
                 </div>
               )}
 
-              {/* Term Report — Hifdh & Behaviour */}
-              {(() => {
-                const report = termReports.find((r) => r.term === selectedTerm);
-                if (!report || (!report.hifdh_progress && !report.behavior_remarks)) return null;
-                return (
-                  <div className="mt-5 bg-surface-container-low rounded-lg p-4">
-                    <p className="text-[10px] font-bold text-primary uppercase tracking-wider mb-2">Term Report</p>
+              {/* Term Reports — Hifdh & Behaviour */}
+              {termReports
+                .filter((r) => r.hifdh_progress || r.behavior_remarks)
+                .map((report) => (
+                  <div key={report.id ?? report.term} className="mt-5 bg-surface-container-low rounded-lg p-4">
+                    <p className="text-[10px] font-bold text-primary uppercase tracking-wider mb-2">
+                      Term {report.term} Report
+                    </p>
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs">
                       {report.hifdh_progress && (
                         <div>
@@ -410,14 +217,8 @@ export default function StudentLogin({ onBack }: StudentLoginProps) {
                       )}
                     </div>
                   </div>
-                );
-              })()}
+                ))}
 
-              <button onClick={handleDownloadPDF} disabled={exporting}
-                className="mt-4 flex items-center gap-1.5 text-xs bg-primary text-white px-4 py-2.5 rounded-lg font-semibold hover:bg-primary-container transition-colors cursor-pointer ml-auto disabled:opacity-50">
-                {exporting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Download className="w-4 h-4" />}
-                {exporting ? "Preparing…" : "Download PDF"}
-              </button>
             </div>
           </div>
         </div>
@@ -437,7 +238,7 @@ export default function StudentLogin({ onBack }: StudentLoginProps) {
           <div className="bg-primary p-6 text-center">
             <GraduationCap className="w-10 h-10 text-secondary-fixed mx-auto mb-2" />
             <h1 className="font-serif text-xl font-bold text-white">Student Portal</h1>
-            <p className="text-white/70 text-xs mt-1">View your termly results</p>
+            <p className="text-white/70 text-xs mt-1">View your profile, attendance and term reports</p>
           </div>
 
           <form onSubmit={handleLogin} className="p-6 space-y-4">
@@ -470,7 +271,7 @@ export default function StudentLogin({ onBack }: StudentLoginProps) {
 
             <button type="submit" disabled={loading}
               className="w-full bg-primary hover:bg-primary-container text-white py-3.5 rounded-lg font-bold text-xs uppercase tracking-widest transition-all disabled:opacity-50 cursor-pointer flex items-center justify-center gap-2">
-              {loading ? "Signing in..." : <><LogIn className="w-4 h-4" /> View My Results</>}
+              {loading ? "Signing in..." : <><LogIn className="w-4 h-4" /> View My Portal</>}
             </button>
 
             <p className="text-[10px] text-on-surface-variant/60 text-center">

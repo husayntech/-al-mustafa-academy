@@ -210,17 +210,10 @@ html[data-ama-boot="1"][data-ama-ready="1"] #root {
   .rich-html[dir="rtl"] ul, .rich-html[dir="rtl"] ol { margin: 0 1.4em 0.9em 0; }
   .rich-html[dir="rtl"] table th, .rich-html[dir="rtl"] table td { text-align: right; }
 
-  /* ---- Print: hide app chrome, show only the result sheet ---- */
+  /* ---- Print: hide app chrome ---- */
   @media print {
     body { background: #fff !important; }
     .no-print { display: none !important; }
-    .print-sheet {
-      box-shadow: none !important;
-      border-radius: 0 !important;
-      border: none !important;
-      margin: 0 !important;
-      max-width: 100% !important;
-    }
     @page { margin: 12mm; }
   }
 }

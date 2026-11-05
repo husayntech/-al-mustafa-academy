@@ -4,14 +4,19 @@ import { motion, AnimatePresence } from "motion/react";
 import {
   ArrowLeft, UserPlus, Edit2, Trash2, FileText, BookOpen,
   Plus, X, Search, Users, Copy, CheckCircle, AlertCircle,
-  BookText, Save, Move, FileSpreadsheet, Download, CalendarCheck, Printer
+  BookText, Save, Move, CalendarCheck, Printer
 } from "lucide-react";
 import { Class, Student, Subject } from "../../types";
-import { fetchResultSheetConfig } from "../../lib/resultSheet";
-import { RESULT_SHEET_DEFAULTS } from "../../lib/resultSheetConfig";
 import { useSiteContent } from "../../lib/siteContent";
-import jsPDF from "jspdf";
-import autoTable from "jspdf-autotable";
+
+// Letterhead details printed on the attendance sheet
+const SCHOOL_LETTERHEAD = {
+  school_name_en: "AL-MUSTAFA ACADEMY FOR QUR'AN MEMORIZATION & ISLAMIC STUDIES",
+  school_name_ar: "مدرسة المصطفى لتحفيظ القرآن والدراسات الإسلامية",
+  school_location: "ILORIN, NIGERIA",
+  school_contact:
+    "Tel: 08037525855 | Address: I/C Khaleel-ur-Rahman Group of Schools, 25, Sabo-Line Road, Opposite Saw-Mill, Ilorin",
+};
 
 // --- Printable attendance sheet helpers ---
 const cellStyle: CSSProperties = {
@@ -41,12 +46,11 @@ interface ClassDetailProps {
   token: string;
   userRole?: string;
   onBack: () => void;
-  onStudentResults: (student: Student) => void;
   onSubjects: () => void;
   onEditStudent?: (student: Student) => void;
 }
 
-export default function ClassDetail({ classData, token, userRole, onBack, onStudentResults, onSubjects, onEditStudent }: ClassDetailProps) {
+export default function ClassDetail({ classData, token, userRole, onBack, onSubjects, onEditStudent }: ClassDetailProps) {
   const isAdmin = userRole === 'admin';
   const [students, setStudents] = useState<Student[]>([]);
   const [subjects, setSubjects] = useState<Subject[]>([]);
@@ -66,7 +70,6 @@ export default function ClassDetail({ classData, token, userRole, onBack, onStud
   const [batchNames, setBatchNames] = useState("");
   const [searchTerm, setSearchTerm] = useState("");
   const [saving, setSaving] = useState(false);
-  const [bulkDownloading, setBulkDownloading] = useState(false);
   const [message, setMessage] = useState<{ type: "success" | "error"; text: string } | null>(null);
   const [showSubjectsPanel, setShowSubjectsPanel] = useState(false);
   const [editSubject, setEditSubject] = useState<Subject | null>(null);
@@ -79,21 +82,8 @@ export default function ClassDetail({ classData, token, userRole, onBack, onStud
   const [attendanceMap, setAttendanceMap] = useState<Record<string, string>>({});
   const [attendanceLoading, setAttendanceLoading] = useState(false);
   const [attendanceSaving, setAttendanceSaving] = useState(false);
-  // Letterhead data for the printable attendance sheet (school name, address, logo)
-  const [attendanceConfig, setAttendanceConfig] = useState<Record<string, string>>(RESULT_SHEET_DEFAULTS);
   const siteContent = useSiteContent();
   const attendanceSheetRef = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    if (!showAttendance) return;
-    let active = true;
-    fetchResultSheetConfig().then((cfg) => {
-      if (active) setAttendanceConfig(cfg);
-    });
-    return () => {
-      active = false;
-    };
-  }, [showAttendance]);
 
   const printAttendanceSheet = () => {
     if (!showAttendance) setShowAttendance(true);
@@ -238,7 +228,7 @@ export default function ClassDetail({ classData, token, userRole, onBack, onStud
   };
 
   const handleDeleteStudent = async (student: Student) => {
-    if (!confirm(`Delete "${student.full_name}"? Their results will also be deleted.`)) return;
+    if (!confirm(`Delete "${student.full_name}"?`)) return;
     try {
       const res = await fetch(`/api/students/${student.id}`, {
         method: "DELETE",
@@ -269,7 +259,7 @@ export default function ClassDetail({ classData, token, userRole, onBack, onStud
   };
 
   const handleDeleteSubject = async (subject: Subject) => {
-    if (!confirm(`Delete subject "${subject.name}"? Related results will also be deleted.`)) return;
+    if (!confirm(`Delete subject "${subject.name}"?`)) return;
     try {
       const res = await fetch(`/api/subjects/${subject.id}`, {
         method: "DELETE",
@@ -301,110 +291,6 @@ export default function ClassDetail({ classData, token, userRole, onBack, onStud
     } catch { /* ignore */ }
     setSaving(false);
     setTimeout(() => setMessage(null), 3000);
-  };
-
-  const handleBulkDownloadPDF = async () => {
-    setBulkDownloading(true);
-    try {
-      // Fetch all students' results
-      const resultsPromises = students.map(async (student) => {
-        const res = await fetch(`/api/students/${student.id}/results`, {
-          headers: { Authorization: `Bearer ${token}` },
-        });
-        const data = await res.json();
-        return { student, results: data.results || [] };
-      });
-
-      const allResults = await Promise.all(resultsPromises);
-
-      const doc = new jsPDF();
-      const pageWidth = doc.internal.pageSize.getWidth();
-      let currentPage = 1;
-
-      for (const { student, results: studentResults } of allResults) {
-        if (currentPage > 1) doc.addPage();
-
-        const primaryColor: [number, number, number] = [11, 110, 79];
-        doc.setFontSize(12);
-        doc.setFont("helvetica", "bold");
-        doc.setTextColor(primaryColor[0], primaryColor[1], primaryColor[2]);
-        doc.text("AL-MUSTAFA ACADEMY", pageWidth / 2, 18, { align: "center" });
-        doc.setFontSize(7);
-        doc.setFont("helvetica", "normal");
-        doc.setTextColor(80);
-        doc.text("FOR QUR'AN MEMORIZATION & ISLAMIC STUDIES · Ilorin, Nigeria", pageWidth / 2, 23, { align: "center" });
-
-        doc.setFontSize(10);
-        doc.setFont("helvetica", "bold");
-        doc.setTextColor(0);
-        doc.text("Bulk Result Sheet", pageWidth / 2, 30, { align: "center" });
-
-        doc.setFontSize(9);
-        doc.setFont("helvetica", "normal");
-        doc.text(`Student: ${student.full_name}`, 14, 40);
-        doc.text(`Class: ${classData.name}`, 14, 46);
-
-        // Get all terms (1, 2, 3) and show test/exam/total for each
-        const tableData = subjects.map((subj) => {
-          const getScoreStr = (term: number, field: string) => {
-            const r = studentResults.find((r: any) => r.subject_id === subj.id && r.term === term);
-            if (!r) return "-";
-            if (field === "test") return r.test_score?.toString() || "-";
-            if (field === "exam") return r.exam_score?.toString() || "-";
-            if (field === "total") return ((r.total_score ?? ((r.test_score || 0) + (r.exam_score || 0))))?.toString() || "-";
-            return "-";
-          };
-          return [
-            subj.name,
-            getScoreStr(1, "total"),
-            getScoreStr(2, "total"),
-            getScoreStr(3, "total"),
-          ];
-        });
-
-        if (tableData.some((r) => r.slice(1).some((v) => v !== "-"))) {
-          autoTable(doc, {
-            startY: 50,
-            head: [["Subject", "Term 1", "Term 2", "Term 3"]],
-            body: tableData,
-            theme: "grid",
-            headStyles: { fillColor: primaryColor, textColor: [255, 255, 255], fontStyle: "bold", fontSize: 7 },
-            styles: { fontSize: 7.5, cellPadding: 2.5 },
-            columnStyles: {
-              0: { cellWidth: 80, halign: "left", fontStyle: "bold" },
-              1: { cellWidth: 30, halign: "center" },
-              2: { cellWidth: 30, halign: "center" },
-              3: { cellWidth: 30, halign: "center" },
-            },
-          });
-        }
-
-        currentPage++;
-      }
-
-      doc.save(`${classData.name.replace(/\s+/g, "_")}_All_Students_Results.pdf`);
-      setMessage({ type: "success", text: "Bulk PDF downloaded!" });
-    } catch { /* ignore */ }
-    setBulkDownloading(false);
-    setTimeout(() => setMessage(null), 3000);
-  };
-
-  const handleExportCSV = () => {
-    fetch(`/api/classes/${classData.id}/export/csv`, {
-      headers: { Authorization: `Bearer ${token}` },
-    })
-      .then((res) => res.blob())
-      .then((blob) => {
-        const url = window.URL.createObjectURL(blob);
-        const a = document.createElement("a");
-        a.href = url;
-        a.download = `${classData.name.replace(/\s+/g, "_")}_results.csv`;
-        a.click();
-        window.URL.revokeObjectURL(url);
-        setMessage({ type: "success", text: "CSV downloaded!" });
-        setTimeout(() => setMessage(null), 3000);
-      })
-      .catch(() => {});
   };
 
   const fetchAttendance = async (date: string) => {
@@ -499,22 +385,6 @@ export default function ClassDetail({ classData, token, userRole, onBack, onStud
               <BookOpen className="w-4 h-4 text-secondary-fixed" />
               <span className="hidden sm:inline">{showSubjectsPanel ? "Hide Subjects" : "Subjects"}</span>
             </button>
-            {students.length > 0 && (
-              <>
-                <button onClick={handleExportCSV}
-                  className="flex items-center gap-1.5 text-xs bg-white/10 hover:bg-white/20 px-3 py-2 rounded-lg transition-colors cursor-pointer"
-                  title="Export to CSV">
-                  <FileSpreadsheet className="w-4 h-4 text-secondary-fixed" />
-                  <span className="hidden sm:inline">CSV</span>
-                </button>
-                <button onClick={handleBulkDownloadPDF} disabled={bulkDownloading}
-                  className="flex items-center gap-1.5 text-xs bg-white/10 hover:bg-white/20 px-3 py-2 rounded-lg transition-colors cursor-pointer disabled:opacity-50"
-                  title="Download all results as PDF">
-                  <Download className="w-4 h-4 text-secondary-fixed" />
-                  <span className="hidden sm:inline">{bulkDownloading ? "..." : "PDF"}</span>
-                </button>
-              </>
-            )}
             {isAdmin && (
               <>
                 <button onClick={() => setShowBatchModal(true)}
@@ -714,15 +584,15 @@ export default function ClassDetail({ classData, token, userRole, onBack, onStud
               ) : null}
               <div style={{ flex: 1, textAlign: "center", minWidth: 0 }}>
                 <div style={{ fontSize: "18px", fontWeight: 800, lineHeight: 1.3 }}>
-                  {attendanceConfig.school_name_en || RESULT_SHEET_DEFAULTS.school_name_en}
+                  {SCHOOL_LETTERHEAD.school_name_en}
                 </div>
                 <div style={{ fontSize: "15px", fontWeight: 700, marginTop: "2px" }}>
-                  {attendanceConfig.school_name_ar || ""}
+                  {SCHOOL_LETTERHEAD.school_name_ar}
                 </div>
                 <div style={{ fontSize: "11px", marginTop: "4px" }}>
-                  {attendanceConfig.school_location || ""}
-                  {(attendanceConfig.school_location || attendanceConfig.school_contact) && " · "}
-                  {attendanceConfig.school_contact || ""}
+                  {SCHOOL_LETTERHEAD.school_location}
+                  {" · "}
+                  {SCHOOL_LETTERHEAD.school_contact}
                 </div>
               </div>
               <div style={{ width: "64px", flexShrink: 0 }} aria-hidden="true" />
@@ -891,15 +761,9 @@ export default function ClassDetail({ classData, token, userRole, onBack, onStud
                     </div>
                     <div className="min-w-0">
                       <p className="text-sm font-semibold text-primary truncate">{student.full_name}</p>
-                      <p className="text-[10px] text-on-surface-variant/60">{student.result_count || 0} result{(student.result_count || 0) !== 1 ? "s" : ""} recorded</p>
                     </div>
                   </div>
                   <div className="flex items-center gap-1.5 shrink-0">
-                    <button onClick={() => onStudentResults(student)}
-                      className="flex items-center gap-1.5 text-xs bg-primary/5 hover:bg-primary text-primary hover:text-white px-3 py-1.5 rounded-lg transition-all cursor-pointer">
-                      <FileText className="w-3.5 h-3.5" />
-                      <span className="hidden sm:inline">Results</span>
-                    </button>
                     <button onClick={() => {
                         if (onEditStudent) { onEditStudent(student); return; }
                         setEditingStudent(student);

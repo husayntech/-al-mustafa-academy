@@ -554,7 +554,7 @@ export default function RichTextEditor({
         <ToolbarButton title="HTML source" onClick={toggleSource} active={showSource}><Code2 className="w-3.5 h-3.5" /></ToolbarButton>
       </div>
 
-      {/* Placeholder chips (used by result-sheet template editor) */}
+      {/* Placeholder chips for inserting live data fields */}
       {placeholders && placeholders.length > 0 && (
         <div className="flex flex-wrap items-center gap-1.5 px-3 py-2 bg-secondary-fixed/10 border-b border-border">
           <span className="text-[10px] font-bold text-on-surface-variant uppercase tracking-wider mr-1">

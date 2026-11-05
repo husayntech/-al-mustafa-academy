@@ -9,14 +9,12 @@ import {
   MousePointerClick, ExternalLink,
   Ticket, Megaphone, Send, Plus, KeyRound, Loader2
 } from "lucide-react";
-import { User, Session, Class, Subject, Result } from "../../types";
+import { User, Session, Class, Subject } from "../../types";
 import { CONTENT_FIELDS, CONTENT_DEFAULTS, normalizeImageUrl, cleanHtmlMarkup } from "../../lib/siteContent";
 import { getEditMode, setEditMode } from "../../lib/editMode";
 import RichTextEditor from "./RichTextEditor";
 import ConfirmModal from "./ConfirmModal";
 import FontPicker from "./FontPicker";
-import { RESULT_SHEET_DEFAULTS, RESULT_SHEET_PLACEHOLDERS } from "../../lib/resultSheetConfig";
-import { buildResultSheetData, renderResultSheetTemplate } from "../../lib/resultSheet";
 
 const PAGE_GROUP_MAP: Record<string, string[]> = {
   home: ["Text & Announcements", "Header & Footer", "Colors & Theme", "Typography & Styling", "Images", "Contact", "Section Spacing"],
@@ -126,23 +124,6 @@ function autoStaffUsername(firstName: string, surname: string, middleName = "") 
   return base ? `staff_${base}` : "";
 }
 
-const SAMPLE_SUBJECTS: Subject[] = [
-  { id: 1, class_id: 1, name: "Qur'an Memorization", book_name: "Juz Amma", book_author: "" },
-  { id: 2, class_id: 1, name: "Tajweed", book_name: "", book_author: "" },
-  { id: 3, class_id: 1, name: "Arabic Grammar (Nahw)", book_name: "", book_author: "" },
-  { id: 4, class_id: 1, name: "Fiqh", book_name: "", book_author: "" },
-  { id: 5, class_id: 1, name: "Tawheed", book_name: "", book_author: "" },
-  { id: 6, class_id: 1, name: "Reading (Mutala'ah)", book_name: "", book_author: "" },
-];
-
-const SAMPLE_RESULTS: Result[] = [
-  { id: 1, student_id: 1, subject_id: 1, term: 1, year: "2026/2027", test_score: 28, exam_score: 65, total_score: 93, remarks: "Excellent", created_at: "" },
-  { id: 2, student_id: 1, subject_id: 2, term: 1, year: "2026/2027", test_score: 24, exam_score: 55, total_score: 79, remarks: "Very Good", created_at: "" },
-  { id: 3, student_id: 1, subject_id: 3, term: 1, year: "2026/2027", test_score: 20, exam_score: 50, total_score: 70, remarks: "Good", created_at: "" },
-  { id: 4, student_id: 1, subject_id: 4, term: 1, year: "2026/2027", test_score: 18, exam_score: 45, total_score: 63, remarks: "", created_at: "" },
-  { id: 5, student_id: 1, subject_id: 5, term: 1, year: "2026/2027", test_score: 15, exam_score: 40, total_score: 55, remarks: "", created_at: "" },
-  { id: 6, student_id: 1, subject_id: 6, term: 1, year: "2026/2027", test_score: 10, exam_score: 30, total_score: 40, remarks: "", created_at: "" },
-];
 
 interface AdminSettingsProps {
   token: string;
@@ -155,7 +136,6 @@ interface DashboardStats {
   totalClasses: number;
   totalStudents: number;
   totalSubjects: number;
-  totalResults: number;
   activeSessions: number;
 }
 
@@ -173,7 +153,7 @@ export default function AdminSettings({ token, user, onBack }: AdminSettingsProp
   const [broadcastChannel, setBroadcastChannel] = useState<"sms" | "email">("sms");
   const [broadcastClassId, setBroadcastClassId] = useState<string>("");
   const [broadcastLoading, setBroadcastLoading] = useState(false);
-  const [activeTab, setActiveTab] = useState<"dashboard" | "users" | "students" | "classes" | "assignments" | "sessions" | "content" | "result-sheet" | "tools" | "scratch-cards" | "broadcast">("dashboard");
+  const [activeTab, setActiveTab] = useState<"dashboard" | "users" | "students" | "classes" | "assignments" | "sessions" | "content" | "tools" | "scratch-cards" | "broadcast">("dashboard");
   const [showAddModal, setShowAddModal] = useState(false);
   const [newUser, setNewUser] = useState({ username: "", password: "", surname: "", first_name: "", middle_name: "", role: "teacher", is_admin: false, phone: "", email: "", address: "" });
   const [editingUser, setEditingUser] = useState<User | null>(null);
@@ -213,7 +193,7 @@ export default function AdminSettings({ token, user, onBack }: AdminSettingsProp
   const [savingContent, setSavingContent] = useState(false);
   const [stats, setStats] = useState<DashboardStats>({
     totalUsers: 0, totalClasses: 0, totalStudents: 0,
-    totalSubjects: 0, totalResults: 0, activeSessions: 0,
+    totalSubjects: 0, activeSessions: 0,
   });
   const [showServerStatus, setShowServerStatus] = useState(false);
   const [serverLog, setServerLog] = useState("");
@@ -232,8 +212,6 @@ export default function AdminSettings({ token, user, onBack }: AdminSettingsProp
     address: "", parent_name: "", parent_phone: "", passport_photo: "",
     student_password: "student123", class_id: 0
   });
-  const [resultSheetConfig, setResultSheetConfig] = useState<Record<string, string>>({});
-  const [configDirty, setConfigDirty] = useState(false);
 
   // Confirm modal state
   const [confirmModal, setConfirmModal] = useState<{ open: boolean; title: string; message: string; onConfirm: () => void }>({
@@ -260,22 +238,6 @@ export default function AdminSettings({ token, user, onBack }: AdminSettingsProp
     return map;
   }, [assignments]);
 
-  // Live preview data for the result-sheet template editor
-  const resultSheetPreviewData = useMemo(
-    () =>
-      buildResultSheetData({
-        config: resultSheetConfig,
-        studentName: "Ahmed Ali Hassan",
-        className: "Primary 1",
-        classNameArabic: "الابتدائية الأولى",
-        subjects: SAMPLE_SUBJECTS,
-        results: SAMPLE_RESULTS,
-        term: 1,
-        academicYear: "2026/2027",
-      }),
-    [resultSheetConfig]
-  );
-
   useEffect(() => {
     fetchUsers();
     fetchSessions();
@@ -284,7 +246,6 @@ export default function AdminSettings({ token, user, onBack }: AdminSettingsProp
     fetchServerStatus();
     fetchAssignments();
     fetchAllTeachers();
-    fetchResultSheetConfig();
     fetchClasses(); // This also triggers fetchAllStudents after loading
   }, []);
 
@@ -364,7 +325,6 @@ export default function AdminSettings({ token, user, onBack }: AdminSettingsProp
         totalClasses: classesList.length,
         totalStudents,
         totalSubjects,
-        totalResults: 0,
         activeSessions: activeCount,
       });
     } catch (err) {
@@ -786,6 +746,7 @@ export default function AdminSettings({ token, user, onBack }: AdminSettingsProp
     setTimeout(() => setMessage(null), 4000);
   };
 
+<<<<<<< HEAD
   /**
    * Host-side: removes the current live photo value so the welcome photo
    * area is only visible when Edit Mode is turned on. Public pages stay clean.
@@ -840,6 +801,8 @@ export default function AdminSettings({ token, user, onBack }: AdminSettingsProp
     setTimeout(() => setMessage(null), 3000);
   };
 
+=======
+>>>>>>> 3e5fe05ee59689fe0137c05087473b839c0b3ed7
   const handleAddStudent = async () => {
     const composedName = composeFullName(studentForm);
     if (!composedName || !studentForm.class_id) return;
@@ -894,7 +857,7 @@ export default function AdminSettings({ token, user, onBack }: AdminSettingsProp
     setConfirmModal({
       open: true,
       title: `Delete "${student.full_name}"?`,
-      message: "This will permanently remove this student and all their results. This action cannot be undone.",
+      message: "This will permanently remove this student. This action cannot be undone.",
       onConfirm: async () => {
         try {
           const res = await fetch(`/api/students/${student.id}`, {
@@ -979,7 +942,7 @@ export default function AdminSettings({ token, user, onBack }: AdminSettingsProp
     setConfirmModal({
       open: true,
       title: "Delete ALL Students?",
-      message: "This will permanently delete ALL students across ALL classes and all their results. This action cannot be undone.",
+      message: "This will permanently delete ALL students across ALL classes. This action cannot be undone.",
       onConfirm: async () => {
         try {
           const res = await fetch("/api/students/all", {
@@ -1003,7 +966,7 @@ export default function AdminSettings({ token, user, onBack }: AdminSettingsProp
     setConfirmModal({
       open: true,
       title: "Delete ALL Subjects?",
-      message: "This will permanently delete ALL subjects across ALL classes AND all student results. This action cannot be undone.",
+      message: "This will permanently delete ALL subjects across ALL classes. This action cannot be undone.",
       onConfirm: async () => {
         try {
           const res = await fetch("/api/subjects/all", {
@@ -1011,7 +974,7 @@ export default function AdminSettings({ token, user, onBack }: AdminSettingsProp
             headers: { Authorization: `Bearer ${token}` },
           });
           if (res.ok) {
-            setMessage({ type: "success", text: "All subjects and results deleted" });
+            setMessage({ type: "success", text: "All subjects deleted" });
             fetchStats();
           }
         } catch {
@@ -1068,9 +1031,6 @@ export default function AdminSettings({ token, user, onBack }: AdminSettingsProp
       case 'content':
         fetchContent();
         break;
-      case 'result-sheet':
-        fetchResultSheetConfig();
-        break;
       case 'scratch-cards':
         fetchPins();
         fetchClasses();
@@ -1095,7 +1055,6 @@ export default function AdminSettings({ token, user, onBack }: AdminSettingsProp
     { id: "assignments" as const, label: "Assignments", icon: UserCheck },
     { id: "sessions" as const, label: "Sessions", icon: Clock },
     { id: "content" as const, label: "Content", icon: FileText },
-    { id: "result-sheet" as const, label: "Result Sheet", icon: FileText },
     { id: "scratch-cards" as const, label: "Scratch Cards", icon: Ticket },
     { id: "broadcast" as const, label: "Broadcast", icon: Megaphone },
     { id: "tools" as const, label: "Tools", icon: Database },
@@ -1352,7 +1311,7 @@ export default function AdminSettings({ token, user, onBack }: AdminSettingsProp
                   <GraduationCap className="w-4 h-4 text-secondary" /> Student Portal
                 </h3>
                 <p className="text-xs text-on-surface-variant mb-3">
-                  Seed student data, manage results, and oversee student access.
+                  Seed student data and oversee student access.
                 </p>
                 <button
                   onClick={() => setActiveTab("tools")}
@@ -1991,6 +1950,7 @@ export default function AdminSettings({ token, user, onBack }: AdminSettingsProp
           </div>
         )}
 
+<<<<<<< HEAD
         {/* ======= RESULT SHEET TAB ======= */}
 
         {/* ======= WELCOME PHOTO CLEAR (HOST-SIDE ONLY) ======= */}
@@ -2190,6 +2150,8 @@ export default function AdminSettings({ token, user, onBack }: AdminSettingsProp
           </div>
         )}
 
+=======
+>>>>>>> 3e5fe05ee59689fe0137c05087473b839c0b3ed7
         {/* ======= TOOLS TAB ======= */}
         {activeTab === "tools" && (
           <div>
@@ -2226,7 +2188,7 @@ export default function AdminSettings({ token, user, onBack }: AdminSettingsProp
                 </div>
                 <h3 className="font-serif font-bold text-primary text-base mb-2">Delete All Students</h3>
                 <p className="text-xs text-on-surface-variant mb-4 leading-relaxed">
-                  Remove all students and their results. This action cannot be undone.
+                  Remove all students. This action cannot be undone.
                 </p>
                 <button
                   onClick={handleDeleteAllStudents}
@@ -2244,7 +2206,7 @@ export default function AdminSettings({ token, user, onBack }: AdminSettingsProp
                 </div>
                 <h3 className="font-serif font-bold text-primary text-base mb-2">Delete All Subjects</h3>
                 <p className="text-xs text-on-surface-variant mb-4 leading-relaxed">
-                  Remove all subjects across all classes AND all student results. This action cannot be undone.
+                  Remove all subjects across all classes. This action cannot be undone.
                 </p>
                 <button
                   onClick={handleDeleteAllSubjects}

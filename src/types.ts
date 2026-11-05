@@ -73,25 +73,6 @@ export interface Student {
   passport_photo?: string;
   student_password?: string;
   created_at: string;
-  result_count?: number;
-}
-
-export interface Result {
-  id: number;
-  student_id: number;
-  subject_id: number;
-  term: number;
-  year: string;
-  test_score: number | null;      // Max 30
-  exam_score: number | null;      // Max 70
-  ca1_score?: number | null;      // CA breakdown component 1 (max 10)
-  ca2_score?: number | null;      // CA breakdown component 2 (max 10)
-  ca3_score?: number | null;      // CA breakdown component 3 (max 10)
-  total_score: number | null;     // Computed: test + exam
-  remarks: string | null;
-  created_at: string;
-  subject_name?: string;
-  book_name?: string;
 }
 
 export interface TermReport {

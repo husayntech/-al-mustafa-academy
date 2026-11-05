@@ -241,7 +241,7 @@ export default function TeacherDashboard({ user, token, onLogout, onSelectClass,
             Select a Class
           </h2>
           <p className="text-on-surface-variant text-sm mt-1">
-            Choose a class to manage students, enter results, and view subjects
+            Choose a class to manage students and view subjects
           </p>
         </div>
 
