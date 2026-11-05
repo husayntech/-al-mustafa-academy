@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import { motion } from "motion/react";
-import { LogIn, User, Eye, EyeOff, ArrowLeft, BookOpen, GraduationCap } from "lucide-react";
+import { LogIn, User, Eye, EyeOff, ArrowLeft, BookOpen, GraduationCap, FileText } from "lucide-react";
 import { normalizeImageUrl } from "../../lib/siteContent";
 
 interface StudentData {
@@ -66,7 +66,10 @@ export default function StudentLogin({ onBack }: StudentLoginProps) {
   };
 
   const [termReports, setTermReports] = useState<any[]>([]);
-  const [attendanceSummary, setAttendanceSummary] = useState<{ status: string; count: number }[]>([]);  const fetchOverview = async (authToken: string) => {
+  const [attendanceSummary, setAttendanceSummary] = useState<{ status: string; count: number }[]>([]);
+  const [showReportSheet, setShowReportSheet] = useState(false);
+
+  const fetchOverview = async (authToken: string) => {
     try {
       const res = await fetch("/api/student/overview", {
         headers: { Authorization: `Bearer ${authToken}` },
@@ -193,6 +196,20 @@ export default function StudentLogin({ onBack }: StudentLoginProps) {
                   })}
                 </div>
               )}
+
+              {/* Report Sheet quick-access */}
+              <div className="mt-4 bg-primary/5 border border-primary/10 rounded-xl p-4">
+                <button
+                  onClick={() => {
+                    if (!token || !student) return;
+                    setShowReportSheet(true);
+                  }}
+                  className="w-full flex items-center gap-2 text-xs font-semibold text-primary border border-primary/20 hover:bg-primary/10 transition-colors px-3 py-2 rounded-lg"
+                >
+                  <FileText className="w-4 h-4" />
+                  Report Sheet
+                </button>
+              </div>
 
               {/* Term Reports — Hifdh & Behaviour */}
               {termReports

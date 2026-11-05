@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { motion } from "motion/react";
 import {
   School, BookOpen, Users, LogOut, Clock, Calendar,
-  ChevronRight, GraduationCap, BookCheck, Download, Shield
+  ChevronRight, FileText, GraduationCap, BookCheck, Download, Shield
 } from "lucide-react";
 import { Class, Session, User } from "../../types";
 
