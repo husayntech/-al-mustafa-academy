@@ -199,7 +199,7 @@ export default function ReportSheet({
     setSaving(true);
     setMessage(null);
     try {
-      const res = await fetch(`/api/report-sheets/${studentId}`, {
+      const res = await fetch(`${apiHost}/api/report-sheets/${studentId}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
         body: JSON.stringify({
