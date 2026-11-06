@@ -1,4 +1,21 @@
 import { useState, useEffect } from "react";
+
+interface TeacherPortalQuickActionProps {
+  onClick: () => void;
+}
+
+function TeacherPortalQuickAction({ onClick }: TeacherPortalQuickActionProps) {
+  return (
+    <button
+      onClick={onClick}
+      className="flex items-center gap-1 hover:text-primary transition-colors"
+    >
+      <FileText className="w-3.5 h-3.5" />
+      <span className="hidden sm:inline">Report Sheet</span>
+    </button>
+  );
+}
+
 import { motion } from "motion/react";
 import {
   School, BookOpen, Users, LogOut, Clock, Calendar,
@@ -19,6 +36,7 @@ export default function TeacherDashboard({ user, token, onLogout, onSelectClass,
   const [session, setSession] = useState<Session | null>(null);
   const [staffCount, setStaffCount] = useState<number | null>(null);
   const [loading, setLoading] = useState(true);
+  const [showReportSheet, setShowReportSheet] = useState(false);
   const [currentTime, setCurrentTime] = useState(new Date());
 
   // Update time every second
@@ -276,6 +294,13 @@ export default function TeacherDashboard({ user, token, onLogout, onSelectClass,
                   <BookOpen className="w-3.5 h-3.5" />
                   Subjects
                 </span>
+                <button
+                  onClick={() => setShowReportSheet(true)}
+                  className="flex items-center gap-1 hover:text-primary transition-colors"
+                >
+                  <FileText className="w-3.5 h-3.5" />
+                  <span className="hidden sm:inline">Report Sheet</span>
+                </button>
               </div>
               <div className="mt-4 flex items-center gap-1 text-secondary text-xs font-semibold opacity-0 group-hover:opacity-100 transition-opacity">
                 Manage Class <ChevronRight className="w-3.5 h-3.5" />
