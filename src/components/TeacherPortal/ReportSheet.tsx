@@ -209,7 +209,7 @@ export default function ReportSheet({
   useEffect(() => {
     void load();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [studentId, term, year]);
+  }, [studentId, term, year, token]);
 
   useEffect(() => {
     const next = yearDraft.trim();
