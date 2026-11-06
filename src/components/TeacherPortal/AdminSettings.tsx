@@ -1030,16 +1030,6 @@ export default function AdminSettings({ token, user, onBack }: AdminSettingsProp
     { id: "tools" as const, label: "Tools", icon: Database },
   ];
 
-  if (reportStudent) {
-    return (
-      <ReportSheet
-        studentId={reportStudent.id}
-        token={token}
-        mode="edit"
-        onBack={() => setReportStudent(null)}
-      />
-    );
-  }
 
   return (
     <motion.div
@@ -1547,6 +1537,16 @@ export default function AdminSettings({ token, user, onBack }: AdminSettingsProp
         )}
 
         {/* ======= CLASSES TAB ======= */}
+
+        {activeTab === "students" && reportStudent && reportStudent.id !== undefined && reportStudent.id !== null ? (
+          <ReportSheet
+            key={reportStudent.id}
+            studentId={reportStudent.id}
+            token={token}
+            mode="edit"
+            onBack={() => setReportStudent(null)}
+          />
+        ) : null}
         {activeTab === "classes" && (
           <div>
             <div className="flex items-center justify-between mb-6">
