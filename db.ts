@@ -78,6 +78,25 @@ async function checkCoreTables(): Promise<boolean> {
   return Boolean(r.has_classes && r.has_content && r.has_users);
 }
 
+/** Seed the default report-sheet subject set (13 per class) for PostgreSQL. */
+async function seedReportSheetSubjectsIfEmpty(sq: any): Promise<void> {
+  if (!sq) return;
+  try {
+    for (const classId of [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]) {
+      for (const subj of DEFAULT_REPORT_SHEET_SUBJECTS) {
+        await sq.unsafe(
+          `INSERT INTO public.report_sheet_subjects (class_id, subject_key, english, arabic, position, enabled) VALUES 
+           ($1, $2, $3, $4, $5, $6)
+           ON CONFLICT (class_id, subject_key) DO NOTHING`,
+          [classId, subj.key, subj.english, subj.arabic, 0, 1]
+        );
+      }
+    }
+  } catch (err: any) {
+    console.warn("⚠️  report_sheet_subjects seed skipped:", err?.message || err);
+  }
+}
+
 export async function initDatabase(): Promise<any> {
   if (USE_POSTGRES) {
     if (sql) return sql;
@@ -125,6 +144,11 @@ export async function initDatabase(): Promise<any> {
       } catch (err: any) {
         console.warn("⚠️  Seed step failed/timed out (continuing):", err?.message || err);
       }
+      try {
+        await withStartupTimeout(seedReportSheetSubjectsIfEmpty(sql), 30_000, "report_sheet_subjects seed step");
+      } catch (err: any) {
+        console.warn("⚠️  report_sheet_subjects seed step failed/timed out (continuing):", err?.message || err);
+      }
       console.log("✅ Connected to PostgreSQL database (existing schema)");
       return sql;
     }
@@ -137,6 +161,11 @@ export async function initDatabase(): Promise<any> {
       await withStartupTimeout(seedPostgresIfEmpty(), 30_000, "Seed step");
     } catch (err: any) {
       console.warn("⚠️  Seed step failed/timed out (continuing):", err?.message || err);
+    }
+    try {
+      await withStartupTimeout(seedReportSheetSubjectsIfEmpty(sql), 30_000, "report_sheet_subjects seed step");
+    } catch (err: any) {
+      console.warn("⚠️  report_sheet_subjects seed step failed/timed out (continuing):", err?.message || err);
     }
     console.log("✅ Connected to PostgreSQL database");
     return sql;
@@ -898,6 +927,23 @@ function ensureSchema(database: SqlJsDatabase) {
 /**
  * Seed default data if the database is empty.
  */
+/** Default report-sheet subject set: 13 subjects printed on every class's report sheet. */
+export const DEFAULT_REPORT_SHEET_SUBJECTS: { key: string; english: string; arabic: string }[] = [
+  { key: "quran", english: "QUR'AN MEMORIZATION", arabic: "حفظ القرآن" },
+  { key: "tajwid", english: "TAJWID", arabic: "التجويد" },
+  { key: "hadith", english: "HADITH", arabic: "الحديث" },
+  { key: "hadith_science", english: "SCIENCE OF HADITH", arabic: "علوم الحديث" },
+  { key: "fiqh", english: "JURISPRUDENCE", arabic: "الفقه" },
+  { key: "tawhid", english: "THEOLOGY", arabic: "التوحيد" },
+  { key: "tafsir", english: "EXEGESIS", arabic: "التفسير" },
+  { key: "nahw", english: "ARABIC GRAMMAR", arabic: "النحو والقواعد" },
+  { key: "balaghah", english: "RHETORIC", arabic: "البلاغة" },
+  { key: "mutalaah", english: "ARABIC PASSAGE READING", arabic: "المطالعة \\ القراءة" },
+  { key: "poem", english: "POEM", arabic: "المنظومة \\ النصوص" },
+  { key: "adab", english: "ISLAMIC MORAL / ETHICS", arabic: "الأدب الإسلامي" },
+  { key: "history", english: "ISLAMIC HISTORY", arabic: "التاريخ" },
+];
+
 function seedData(database: SqlJsDatabase) {
   // Check if data already exists
   const countResult = database.exec("SELECT COUNT(*) as cnt FROM classes");
@@ -966,31 +1012,8 @@ function seedData(database: SqlJsDatabase) {
     }
   }
 
-  // Seed report-sheet subject set: the 13 default report-sheet subjects for every
-  // class. Classes 1-4 start empty in `subjects` but inherit these 13 for the sheet.
-  const defaultReportSheetSubjects: { key: string; english: string; arabic: string }[] = [
-    { key: "quran", english: "QUR'AN MEMORIZATION", arabic: "حفظ القرآن" },
-    { key: "tajwid", english: "TAJWID", arabic: "التجويد" },
-    { key: "hadith", english: "HADITH", arabic: "الحديث" },
-    { key: "hadith_science", english: "SCIENCE OF HADITH", arabic: "علوم الحديث" },
-    { key: "fiqh", english: "JURISPRUDENCE", arabic: "الفقه" },
-    { key: "tawhid", english: "THEOLOGY", arabic: "التوحيد" },
-    { key: "tafsir", english: "EXEGESIS", arabic: "التفسير" },
-    { key: "nahw", english: "ARABIC GRAMMAR", arabic: "النحو والقواعد" },
-    { key: "balaghah", english: "RHETORIC", arabic: "البلاغة" },
-    { key: "mutalaah", english: "ARABIC PASSAGE READING", arabic: "المطالعة \\ القراءة" },
-    { key: "poem", english: "POEM", arabic: "المنظومة \\ النصوص" },
-    { key: "adab", english: "ISLAMIC MORAL / ETHICS", arabic: "الأدب الإسلامي" },
-    { key: "history", english: "ISLAMIC HISTORY", arabic: "التاريخ" },
-  ];
-  for (const classId of [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]) {
-    for (const subj of defaultReportSheetSubjects) {
-      database.run(
-        "INSERT OR IGNORE INTO report_sheet_subjects (class_id, subject_key, english, arabic, position, enabled) VALUES (?, ?, ?, ?, ?, ?)",
-        [classId, subj.key, subj.english, subj.arabic, 0, 1]
-      );
-    }
-  }
+  // Seed report-sheet subject set for every class (13 subjects per class).
+  seedReportSheetSubjectsIfEmpty(database);
 
   // Seed site content
   const contentItems = [
