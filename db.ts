@@ -78,7 +78,9 @@ async function checkCoreTables(): Promise<boolean> {
   return Boolean(r.has_classes && r.has_content && r.has_users);
 }
 
-/** Seed the default report-sheet subject set (13 per class) for PostgreSQL. */
+/** Seed the default report-sheet subject set (13 per class) for PostgreSQL.
+ * Upserts each subject per class so that, after an admin deletes a subject,
+ * the default 13-set is restored on next app start. */
 async function seedReportSheetSubjectsIfEmpty(sq: any): Promise<void> {
   if (!sq) return;
   try {
@@ -87,7 +89,11 @@ async function seedReportSheetSubjectsIfEmpty(sq: any): Promise<void> {
         await sq.unsafe(
           `INSERT INTO public.report_sheet_subjects (class_id, subject_key, english, arabic, position, enabled) VALUES 
            ($1, $2, $3, $4, $5, $6)
-           ON CONFLICT (class_id, subject_key) DO NOTHING`,
+           ON CONFLICT (class_id, subject_key) DO UPDATE SET
+             english = EXCLUDED.english,
+             arabic = EXCLUDED.arabic,
+             position = EXCLUDED.position,
+             enabled = 1`,
           [classId, subj.key, subj.english, subj.arabic, 0, 1]
         );
       }
