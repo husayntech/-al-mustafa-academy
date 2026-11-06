@@ -1,27 +1,12 @@
 import { useState, useEffect } from "react";
 
-interface TeacherPortalQuickActionProps {
-  onClick: () => void;
-}
-
-function TeacherPortalQuickAction({ onClick }: TeacherPortalQuickActionProps) {
-  return (
-    <button
-      onClick={onClick}
-      className="flex items-center gap-1 hover:text-primary transition-colors"
-    >
-      <FileText className="w-3.5 h-3.5" />
-      <span className="hidden sm:inline">Report Sheet</span>
-    </button>
-  );
-}
-
 import { motion } from "motion/react";
 import {
   School, BookOpen, Users, LogOut, Clock, Calendar,
   ChevronRight, FileText, GraduationCap, BookCheck, Download, Shield
 } from "lucide-react";
 import { Class, Session, User } from "../../types";
+import ReportSheet from "./ReportSheet";
 
 interface TeacherDashboardProps {
   user: User;
@@ -36,8 +21,10 @@ export default function TeacherDashboard({ user, token, onLogout, onSelectClass,
   const [session, setSession] = useState<Session | null>(null);
   const [staffCount, setStaffCount] = useState<number | null>(null);
   const [loading, setLoading] = useState(true);
-  const [showReportSheet, setShowReportSheet] = useState(false);
   const [currentTime, setCurrentTime] = useState(new Date());
+  const [showReportSheet, setShowReportSheet] = useState(false);
+  const [selectedStudentId, setSelectedStudentId] = useState<number | null>(null);
+  const [selectedClassId, setSelectedClassId] = useState<number | null>(null);
 
   // Update time every second
   useEffect(() => {
@@ -53,9 +40,7 @@ export default function TeacherDashboard({ user, token, onLogout, onSelectClass,
 
   const fetchClasses = async () => {
     try {
-      const res = await fetch("/api/classes", {
-        headers: { Authorization: `Bearer ${token}` },
-      });
+      const res = await fetch("/api/classes", { headers: { Authorization: `Bearer ${token}` }, });
       const data = await res.json();
       setClasses(data.classes || []);
     } catch (err) {
@@ -67,9 +52,7 @@ export default function TeacherDashboard({ user, token, onLogout, onSelectClass,
 
   const fetchCurrentSession = async () => {
     try {
-      const res = await fetch("/api/session/current", {
-        headers: { Authorization: `Bearer ${token}` },
-      });
+      const res = await fetch("/api/session/current", { headers: { Authorization: `Bearer ${token}` }, });
       const data = await res.json();
       setSession(data.session);
     } catch (err) {
@@ -79,22 +62,30 @@ export default function TeacherDashboard({ user, token, onLogout, onSelectClass,
 
   const fetchStaffCount = async () => {
     try {
-      const res = await fetch("/api/staff/count", {
-        headers: { Authorization: `Bearer ${token}` },
-      });
+      const res = await fetch("/api/staff/count", { headers: { Authorization: `Bearer ${token}` }, });
       const data = await res.json();
       setStaffCount(data.count ?? null);
     } catch (err) {
       console.error("Failed to fetch staff count:", err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const fetchClassStudents = async (classId: number) => {
+    try {
+      const res = await fetch(`/api/classes/${classId}/students`, { headers: { Authorization: `Bearer ${token}` }, });
+      const data = await res.json();
+      return data.students || [];
+    } catch (err) {
+      console.error("Failed to fetch class students:", err);
+      return [];
     }
   };
 
   const handleLogout = async () => {
     try {
-      await fetch("/api/auth/logout", {
-        method: "POST",
-        headers: { Authorization: `Bearer ${token}` },
-      });
+      await fetch("/api/auth/logout", { method: "POST", headers: { Authorization: `Bearer ${token}` }, });
     } catch (err) {
       console.error("Logout error:", err);
     }
@@ -120,12 +111,7 @@ export default function TeacherDashboard({ user, token, onLogout, onSelectClass,
 
   const formatDate = (dateStr: string) => {
     const d = new Date(dateStr);
-    return d.toLocaleDateString("en-US", {
-      weekday: "long",
-      year: "numeric",
-      month: "long",
-      day: "numeric",
-    });
+    return d.toLocaleDateString("en-US", { weekday: "long", year: "numeric", month: "long", day: "numeric", });
   };
 
   const formatTime = (dateStr: string) => {
@@ -145,7 +131,6 @@ export default function TeacherDashboard({ user, token, onLogout, onSelectClass,
       </div>
     );
   }
-
   return (
     <motion.div
       initial={{ opacity: 0 }}
@@ -255,12 +240,8 @@ export default function TeacherDashboard({ user, token, onLogout, onSelectClass,
         </div>
 
         <div className="mb-8">
-          <h2 className="font-serif text-2xl text-primary font-bold tracking-tight">
-            Select a Class
-          </h2>
-          <p className="text-on-surface-variant text-sm mt-1">
-            Choose a class to manage students and view subjects
-          </p>
+          <h2 className="font-serif text-2xl text-primary font-bold tracking-tight">Select a Class</h2>
+          <p className="text-on-surface-variant text-sm mt-1">Choose a class to manage students and view subjects</p>
         </div>
 
         {/* Class Grid */}
@@ -295,7 +276,16 @@ export default function TeacherDashboard({ user, token, onLogout, onSelectClass,
                   Subjects
                 </span>
                 <button
-                  onClick={() => setShowReportSheet(true)}
+                  onClick={async () => {
+                    if (!selectedClassId) {
+                      await fetchClassStudents(cls.id);
+                      setSelectedClassId(cls.id);
+                    }
+                    const students = await fetchClassStudents(cls.id);
+                    const student = students[0];
+                    if (student) setSelectedStudentId(student.id);
+                    setShowReportSheet(true);
+                  }}
                   className="flex items-center gap-1 hover:text-primary transition-colors"
                 >
                   <FileText className="w-3.5 h-3.5" />
@@ -349,6 +339,20 @@ export default function TeacherDashboard({ user, token, onLogout, onSelectClass,
           </div>
         </div>
       </div>
+
+      {/* Studies Report Sheet */}
+      {showReportSheet && selectedStudentId !== null && (
+        <ReportSheet
+          studentId={selectedStudentId}
+          token={token}
+          mode="edit"
+          onBack={() => {
+            setShowReportSheet(false);
+            setSelectedStudentId(null);
+            setSelectedClassId(null);
+          }}
+        />
+      )}
     </motion.div>
   );
 }
