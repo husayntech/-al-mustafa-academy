@@ -117,12 +117,16 @@ export default function ReportSheet({
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState<{ type: "success" | "error"; text: string } | null>(null);
 
+  // Use an absolute URL so the sheet works from every portal (public, teacher,
+  // student, and admin) — a relative URL can resolve against the wrong origin or
+  // a SPA rewrite rule on some hosts.
+  const apiHost = typeof window !== "undefined" ? window.location.origin : "https://al-mustafa-academy-chi.vercel.app";
   const load = useCallback(async () => {
     setLoading(true);
     setMessage(null);
     try {
       const res = await fetch(
-        `/api/report-sheets/${studentId}?term=${term}&year=${encodeURIComponent(year)}`,
+        `${apiHost}/api/report-sheets/${studentId}?term=${term}&year=${encodeURIComponent(year)}`,
         { headers: { Authorization: `Bearer ${token}` } }
       );
       const data = await res.json();

@@ -37,6 +37,21 @@ export default function HomeTab({ onScreenChange }: HomeTabProps) {
   const homeMissionPaddingTop = parseInt(siteContent.home_mission_padding_top || "80");
   const homeMissionPaddingBottom = parseInt(siteContent.home_mission_padding_bottom || "64");
 
+
+/** A Google Drive "export/view" link (used by the site edit tool as a plain text
+ * placeholder) does not render as an <img> background — treat it as "no image"
+ * so the hero falls back to the school logo instead of showing a blank/broken background.
+ */
+function isBrokenImageUrl(url: string): boolean {
+  if (!url) return true;
+  // Google Drive "export/view" placeholder links do not render as <img> backgrounds.
+  if (url.indexOf("drive.google.com") >= 0 && url.indexOf("export=view") >= 0) return true;
+  // Local upload assets live under /uploads/.
+  if (url.startsWith("/uploads/")) return false;
+  // Any https:// absolute URL is treated as a valid image (e.g. the school logo).
+  if (url.startsWith("https://")) return false;
+  return true;
+}
   return (
     <motion.div
       initial={{ opacity: 0 }}
@@ -105,7 +120,7 @@ export default function HomeTab({ onScreenChange }: HomeTabProps) {
         <EditableImage
           contentKey="hero_image_url"
           label="Home Hero Background"
-          src={normalizeImageUrl(siteContent.hero_image_url || siteContent.logo_url) || CONTENT_DEFAULTS.hero_image_url}
+          src={isBrokenImageUrl(siteContent.hero_image_url) ? siteContent.logo_url : siteContent.hero_image_url}
           alt="A serene architectural view of a modern academy campus"
           className="absolute inset-0"
         >
@@ -118,7 +133,7 @@ export default function HomeTab({ onScreenChange }: HomeTabProps) {
             initial={{ scale: 1.15 }}
             animate={{ scale: 1.05 }}
             transition={{ duration: 22, repeat: Infinity, repeatType: "reverse", ease: "easeInOut" }}
-            src={normalizeImageUrl(siteContent.hero_image_url || siteContent.logo_url) || CONTENT_DEFAULTS.hero_image_url}
+            src={isBrokenImageUrl(siteContent.hero_image_url) ? siteContent.logo_url : siteContent.hero_image_url}
             onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
           />
         </EditableImage>

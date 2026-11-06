@@ -354,17 +354,20 @@ export default function ClassDetail({ classData, token, userRole, onBack, onSubj
     if (counts[st] !== undefined) counts[st]++;
   }
 
-  if (reportStudent) {
-    return (
-      <ReportSheet
-        studentId={reportStudent.id}
-        token={token}
-        mode="edit"
-        initialTerm={1}
-        onBack={() => setReportStudent(null)}
-      />
-    );
+  // Safe render: skip if the selected student row lost its id, so the report
+  // sheet never blanks out on the admin portal.
+  if (!reportStudent || reportStudent.id === undefined || reportStudent.id === null) {
+    return null;
   }
+  return (
+    <ReportSheet
+      studentId={reportStudent.id}
+      token={token}
+      mode="edit"
+      initialTerm={1}
+      onBack={() => setReportStudent(null)}
+    />
+  );
 
   if (loading) {
     return (
