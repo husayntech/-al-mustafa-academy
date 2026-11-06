@@ -209,6 +209,20 @@ export default function StudentLogin({ onBack }: StudentLoginProps) {
                 <Printer className="w-4 h-4 text-secondary shrink-0" />
               </button>
 
+              {/* Report Sheet */}
+              <button
+                onClick={() => setShowReportSheet(true)}
+                className="w-full flex items-center justify-between gap-3 border border-secondary/20 rounded-lg px-4 py-3 transition-colors cursor-pointer mb-2">
+                <span className="flex items-center gap-3 text-left">
+                  <FileText className="w-5 h-5 text-secondary shrink-0" />
+                  <span>
+                    <span className="block text-xs font-bold text-primary">Studies Report Sheet</span>
+                    <span className="block text-[10px] text-on-surface-variant">View and print your term result sheet (كشف الدرجات)</span>
+                  </span>
+                </span>
+                <Printer className="w-4 h-4 text-secondary shrink-0" />
+              </button>
+
               {/* Attendance Summary */}
               {attendanceSummary.length > 0 && (
                 <div className="mt-5 grid grid-cols-3 gap-2">
