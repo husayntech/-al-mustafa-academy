@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { createPortal } from "react-dom";
 import { motion } from "motion/react";
 import { ArrowLeft, Printer, Save, Loader2, CheckCircle, AlertCircle } from "lucide-react";
@@ -112,6 +112,14 @@ export default function ReportSheet({
   // Stable set of subject keys the admin has chosen for this sheet (defaults
   // + any class-added). Used to render rows beyond the built-in 13.
   const [subjectKeys, setSubjectKeys] = useState<Set<string>>(new Set());
+  // ref over fetchReportSubjects so that load() and the subject add/remove
+  // handlers always use the LATEST sheet.student.class_id / token. load() is
+  // memoized with deps [studentId, term, year, token]; the effect that drives
+  // it does not re-run on token refresh, so the memoized load() would capture
+  // the first-render fetchReportSubjects (sheet.student.class_id ===
+  // undefined) and silently never populate reportSubjects, leaving the
+  // admin subject add/remove buttons invisible.
+  const fetchReportSubjectsRef = useRef(fetchReportSubjects);
   const [meta, setMeta] = useState<DraftMeta>({
     general_remarks: "",
     promotion_to: "",
@@ -187,7 +195,10 @@ export default function ReportSheet({
       setMeta({ ...next.meta });
       // Refresh the class's report-sheet subject configuration so the admin can
       // add/remove the subjects printed on this sheet.
-      void fetchReportSubjects();
+      // Use the ref to get the latest fetchReportSubjects (avoids a stale
+      // closure caused by load() being memoized with deps [studentId, term,
+      // year, token]).
+      void fetchReportSubjectsRef.current();
     } catch (err: any) {
       setMessage({ type: "error", text: err?.message || "Failed to load report sheet" });
     } finally {
@@ -724,7 +735,7 @@ export default function ReportSheet({
                           .then(async (res) => {
                             const data = await res.json();
                             if (!res.ok) throw new Error(data?.error || "Failed to add subject");
-                            await fetchReportSubjects();
+                            await fetchReportSubjectsRef.current();
                             setMessage({ type: "success", text: "Subject added to report sheet" });
                           })
                           .catch((err: any) => setMessage({ type: "error", text: err?.message }));
@@ -745,7 +756,7 @@ export default function ReportSheet({
                             method: "DELETE",
                             headers: { Authorization: `Bearer ${token}` },
                           });
-                          await fetchReportSubjects();
+                          await fetchReportSubjectsRef.current();
                           setMessage({ type: "success", text: `Subject removed: ${s.english}` });
                         }}
                         className={
