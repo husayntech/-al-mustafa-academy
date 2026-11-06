@@ -283,6 +283,16 @@ export const POSTGRES_SCHEMA_SQL = `
       updated_at TIMESTAMPTZ DEFAULT NOW(),
       UNIQUE(student_id, term, year)
     );
+    CREATE TABLE IF NOT EXISTS public.report_sheet_subjects (
+      id SERIAL PRIMARY KEY,
+      class_id INTEGER NOT NULL REFERENCES public.classes(id) ON DELETE CASCADE,
+      subject_key TEXT NOT NULL,
+      english TEXT NOT NULL,
+      arabic TEXT NOT NULL,
+      position INTEGER NOT NULL DEFAULT 0,
+      enabled INTEGER NOT NULL DEFAULT 1,
+      UNIQUE(class_id, subject_key)
+    );
     CREATE TABLE IF NOT EXISTS public.sessions (
       id SERIAL PRIMARY KEY,
       user_id INTEGER NOT NULL REFERENCES public.users(id),
@@ -810,6 +820,19 @@ function ensureSchema(database: SqlJsDatabase) {
   `);
 
   database.run(`
+    CREATE TABLE IF NOT EXISTS report_sheet_subjects (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      class_id INTEGER NOT NULL REFERENCES classes(id) ON DELETE CASCADE,
+      subject_key TEXT NOT NULL,
+      english TEXT NOT NULL,
+      arabic TEXT NOT NULL,
+      position INTEGER NOT NULL DEFAULT 0,
+      enabled INTEGER NOT NULL DEFAULT 1,
+      UNIQUE(class_id, subject_key)
+    )
+  `);
+
+  database.run(`
     CREATE TABLE IF NOT EXISTS sessions (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       user_id INTEGER NOT NULL REFERENCES users(id),
@@ -939,6 +962,32 @@ function seedData(database: SqlJsDatabase) {
       database.run(
         "INSERT INTO subjects (class_id, name, book_name, book_author) VALUES (?, ?, ?, ?)",
         [classId, subj.name, `Level ${classId} - ${subj.name_arabic}`, ""]
+      );
+    }
+  }
+
+  // Seed report-sheet subject set: the 13 default report-sheet subjects for every
+  // class. Classes 1-4 start empty in `subjects` but inherit these 13 for the sheet.
+  const defaultReportSheetSubjects: { key: string; english: string; arabic: string }[] = [
+    { key: "quran", english: "QUR'AN MEMORIZATION", arabic: "حفظ القرآن" },
+    { key: "tajwid", english: "TAJWID", arabic: "التجويد" },
+    { key: "hadith", english: "HADITH", arabic: "الحديث" },
+    { key: "hadith_science", english: "SCIENCE OF HADITH", arabic: "علوم الحديث" },
+    { key: "fiqh", english: "JURISPRUDENCE", arabic: "الفقه" },
+    { key: "tawhid", english: "THEOLOGY", arabic: "التوحيد" },
+    { key: "tafsir", english: "EXEGESIS", arabic: "التفسير" },
+    { key: "nahw", english: "ARABIC GRAMMAR", arabic: "النحو والقواعد" },
+    { key: "balaghah", english: "RHETORIC", arabic: "البلاغة" },
+    { key: "mutalaah", english: "ARABIC PASSAGE READING", arabic: "المطالعة \\ القراءة" },
+    { key: "poem", english: "POEM", arabic: "المنظومة \\ النصوص" },
+    { key: "adab", english: "ISLAMIC MORAL / ETHICS", arabic: "الأدب الإسلامي" },
+    { key: "history", english: "ISLAMIC HISTORY", arabic: "التاريخ" },
+  ];
+  for (const classId of [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]) {
+    for (const subj of defaultReportSheetSubjects) {
+      database.run(
+        "INSERT OR IGNORE INTO report_sheet_subjects (class_id, subject_key, english, arabic, position, enabled) VALUES (?, ?, ?, ?, ?, ?)",
+        [classId, subj.key, subj.english, subj.arabic, 0, 1]
       );
     }
   }

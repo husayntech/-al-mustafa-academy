@@ -60,6 +60,19 @@ export default function TeacherDashboard({ user, token, onLogout, onSelectClass,
     }
   };
 
+  const fetchClassStudents = async (classId: number) => {
+    try {
+      const res = await fetch(`/api/classes/${classId}/students`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      const data = await res.json();
+      return data.students || [];
+    } catch (err) {
+      console.error("Failed to fetch class students:", err);
+      return [];
+    }
+  };
+
   const fetchStaffCount = async () => {
     try {
       const res = await fetch("/api/staff/count", { headers: { Authorization: `Bearer ${token}` }, });
@@ -72,16 +85,7 @@ export default function TeacherDashboard({ user, token, onLogout, onSelectClass,
     }
   };
 
-  const fetchClassStudents = async (classId: number) => {
-    try {
-      const res = await fetch(`/api/classes/${classId}/students`, { headers: { Authorization: `Bearer ${token}` }, });
-      const data = await res.json();
-      return data.students || [];
-    } catch (err) {
-      console.error("Failed to fetch class students:", err);
-      return [];
-    }
-  };
+
 
   const handleLogout = async () => {
     try {

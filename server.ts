@@ -12,7 +12,6 @@ import {
   REPORT_SUBJECTS,
   MAX_TEST_SCORE,
   MAX_EXAM_SCORE,
-  MAX_SHEET_TOTAL,
   clampScore,
   gradeFor,
   defaultReportYear,
@@ -754,6 +753,84 @@ app.delete("/api/classes/:classId/subjects/all", authMiddleware, async (req: Aut
   }
 });
 
+// --- Report Sheet Subject Routes (admin: add/remove the subjects printed on the sheet) ---
+
+// List the current report-sheet subject set for a class (enabled subjects).
+app.get("/api/classes/:classId/report-sheet/subjects", authMiddleware, async (req: AuthenticatedRequest, res: Response) => {
+  try {
+    const classId = parseInt(req.params.classId);
+    if (!(await hasClassAccess(req.user, classId))) {
+      return res.status(403).json({ error: "You are not assigned to this class" });
+    }
+    const rows = await queryAll(
+      `SELECT subject_key, english, arabic, position, enabled FROM report_sheet_subjects WHERE class_id = $1 ORDER BY position ASC`,
+      [classId]
+    );
+    const enabled = rows.filter((r) => r.enabled === 1 || r.enabled === true || r.enabled === 1).map((r) => ({
+      key: r.subject_key,
+      english: r.english || "",
+      arabic: r.arabic || "",
+      position: Number(r.position ?? 0),
+    }));
+    res.json({ subjects: enabled || [] });
+  } catch (error: any) {
+    console.error("Report-sheet subjects fetch error:", error);
+    res.status(500).json({ error: "Failed to fetch report-sheet subjects" });
+  }
+});
+
+// Add a subject to a class's report-sheet set.
+app.post("/api/classes/:classId/report-sheet/subjects", authMiddleware, async (req: AuthenticatedRequest, res: Response) => {
+  try {
+    const classId = parseInt(req.params.classId);
+    if (!(await hasClassAccess(req.user, classId))) {
+      return res.status(403).json({ error: "You are not assigned to this class" });
+    }
+    const { key, english, arabic, position } = req.body;
+    const cleanedKey = String(key || "").trim().toLowerCase().replace(/[^a-z0-9_]+/g, "_");
+    if (!cleanedKey) return res.status(400).json({ error: "A unique subject key is required" });
+    const cleanedEnglish = String(english || "").trim();
+    const cleanedArabic = String(arabic || "").trim();
+    if (!cleanedEnglish) return res.status(400).json({ error: "English name is required" });
+    if (!cleanedArabic) return res.status(400).json({ error: "Arabic name is required" });
+
+    const existing = await queryOne(
+      "SELECT id FROM report_sheet_subjects WHERE class_id = $1 AND subject_key = $2",
+      [classId, cleanedKey]
+    );
+    if (existing) return res.status(409).json({ error: "This subject is already added to this class's report sheet" });
+
+    const id = await execute(
+      `INSERT INTO report_sheet_subjects (class_id, subject_key, english, arabic, position, enabled) VALUES ($1, $2, $3, $4, $5, $6)`,
+      [classId, cleanedKey, cleanedEnglish, cleanedArabic, Number(position ?? 0), 1]
+    );
+    res.json({ id, key: cleanedKey, english: cleanedEnglish, arabic: cleanedArabic, message: "Subject added to report sheet" });
+  } catch (error: any) {
+    console.error("Add report-sheet subject error:", error);
+    res.status(500).json({ error: "Failed to add report-sheet subject" });
+  }
+});
+
+// Remove a subject from a class's report-sheet set (keeps its saved scores).
+app.delete("/api/classes/:classId/report-sheet/subjects/:subjectKey", authMiddleware, async (req: AuthenticatedRequest, res: Response) => {
+  try {
+    const classId = parseInt(req.params.classId);
+    const subjectKey = String(req.params.subjectKey || "").trim().toLowerCase();
+    if (!subjectKey) return res.status(400).json({ error: "Invalid subject key" });
+    if (!(await hasClassAccess(req.user, classId))) {
+      return res.status(403).json({ error: "You are not assigned to this class" });
+    }
+    const deleted = await execute(
+      "DELETE FROM report_sheet_subjects WHERE class_id = $1 AND subject_key = $2",
+      [classId, subjectKey]
+    );    if (deleted === 0) return res.status(404).json({ error: "Subject not found in this class's report sheet" });
+    res.json({ message: "Subject removed from report sheet" });
+  } catch (error: any) {
+    console.error("Remove report-sheet subject error:", error);
+    res.status(500).json({ error: "Failed to remove report-sheet subject" });
+  }
+});
+
 // --- Student Routes ---
 app.get("/api/classes/:classId/students", authMiddleware, async (req: AuthenticatedRequest, res: Response) => {
   try {
@@ -1010,20 +1087,93 @@ async function buildReportSheet(studentId: number, term: number, year: string) {
   const byKey = new Map<string, Record<string, any>>();
   for (const row of scoreRows) byKey.set(String(row.subject_key), row);
 
-  const subjects = REPORT_SUBJECTS.map((subject) => {
-    const row = byKey.get(subject.key);
+  // Build the sheet's subject list from the class's enabled report-sheet
+  // subjects, merged with any extra class subjects (teachers add them in the
+  // subjects table). This is what lets an admin add/remove subjects on the sheet.
+  const reportSheetSubjects = await queryAll(
+    `SELECT subject_key, english, arabic, position, enabled FROM report_sheet_subjects WHERE class_id = $1 ORDER BY position ASC`,
+    [student.class_id]
+  );
+  const enabledSheetSubjects = reportSheetSubjects.filter((r) => r.enabled === 1 || r.enabled === true || r.enabled === 1).map((r) => ({
+    key: r.subject_key,
+    english: r.english || "",
+    arabic: r.arabic || "",
+    position: Number(r.position ?? 0),
+  }));
+  const classSubjects = await queryAll(
+    `SELECT id, name, book_name, book_author FROM subjects WHERE class_id = $1 ORDER BY id ASC`,
+    [student.class_id]
+  );
+  // Default 13 subjects (in case a class has no row yet).
+  const defaultSubjects = REPORT_SUBJECTS.map((s) => ({ key: s.key, english: s.english, arabic: s.arabic }));
+
+  // Attach saved scores and build the ordered subject list the sheet renders.
+  // Order: report-sheet-set subjects (by position) first, then extra class
+  // subjects (teachers-added, by id), then the default 13 subjects.
+  function subjectByKey(key: string): { key: string; english: string; arabic: string; source: string } | undefined {
+    if (enabledSheetSubjects.some((s) => s.key === key)) return { key: enabledSheetSubjects.find((s) => s.key === key)!.key, english: enabledSheetSubjects.find((s) => s.key === key)!.english, arabic: enabledSheetSubjects.find((s) => s.key === key)!.arabic, source: "report_sheet_subjects" };
+    const byId = classSubjects.find((s) => String(s.id) === key);
+    if (byId) return { key, english: byId.name, arabic: byId.book_name || byId.name, source: "subjects" };
+    const def = defaultSubjects.find((d) => d.key === key);
+    if (def) return { key, english: def.english, arabic: def.arabic, source: "default" };
+    return undefined;
+  }
+
+  const subjects: any[] = [];
+  for (const s of enabledSheetSubjects) {
+    const row = byKey.get(s.key);
     const test = row && row.test_score !== null && row.test_score !== undefined ? Number(row.test_score) : null;
     const exam = row && row.exam_score !== null && row.exam_score !== undefined ? Number(row.exam_score) : null;
-    return {
-      key: subject.key,
-      english: subject.english,
-      arabic: subject.arabic,
+    subjects.push({
+      key: s.key,
+      english: s.english,
+      arabic: s.arabic,
+      source: "report_sheet_subjects",
       test_score: test,
       exam_score: exam,
       total: test === null && exam === null ? null : (test || 0) + (exam || 0),
       remarks: row?.remarks ?? "",
-    };
-  });
+    });
+  }
+  for (const subj of classSubjects) {
+    const key = String(subj.id);
+    if (subjects.some((s) => s.key === key)) continue; // already in the report-sheet set
+    const row = byKey.get(key);
+    const test = row && row.test_score !== null && row.test_score !== undefined ? Number(row.test_score) : null;
+    const exam = row && row.exam_score !== null && row.exam_score !== undefined ? Number(row.exam_score) : null;
+    subjects.push({
+      key,
+      english: subj.name,
+      arabic: subj.book_name || subj.name,
+      source: "subjects",
+      test_score: test,
+      exam_score: exam,
+      total: test === null && exam === null ? null : (test || 0) + (exam || 0),
+      remarks: row?.remarks ?? "",
+    });
+  }
+  for (const d of defaultSubjects) {
+    if (subjects.some((s) => s.key === d.key)) continue; // already present
+    subjects.push({
+      key: d.key,
+      english: d.english,
+      arabic: d.arabic,
+      source: "default",
+      test_score: null,
+      exam_score: null,
+      total: null,
+      remarks: "",
+    });
+  }
+  for (const subj of subjects) {
+    const row = byKey.get(subj.key);
+    if (row) {
+      subj.test_score = row.test_score !== null && row.test_score !== undefined ? Number(row.test_score) : null;
+      subj.exam_score = row.exam_score !== null && row.exam_score !== undefined ? Number(row.exam_score) : null;
+      subj.total = subj.test_score === null && subj.exam_score === null ? null : (subj.test_score || 0) + (subj.exam_score || 0);
+      subj.remarks = row.remarks ?? "";
+    }
+  }
 
   const meta = await queryOne(
     `SELECT general_remarks, promotion_to, vacation, resumption
@@ -1034,7 +1184,11 @@ async function buildReportSheet(studentId: number, term: number, year: string) {
   const testTotal = subjects.reduce((sum, s) => sum + (s.test_score ?? 0), 0);
   const examTotal = subjects.reduce((sum, s) => sum + (s.exam_score ?? 0), 0);
   const total = testTotal + examTotal;
-  const percentage = Math.round((total / MAX_SHEET_TOTAL) * 1000) / 10;
+  // Dynamic max total: every printed subject is out of 100 (test 30 + exam 70).
+  // As the admin adds/removes subjects, the percentage denominator updates so
+  // the score never looks artificially high or low.
+  const maxTotal = subjects.reduce((sum, s) => sum + (s.test_score === null && s.exam_score === null ? 0 : 100), 0);
+  const percentage = maxTotal > 0 ? Math.round((total / maxTotal) * 1000) / 10 : 0;
   const band = gradeFor(percentage);
 
   // Position is the rank of this student's total among classmates who have a
@@ -1129,17 +1283,30 @@ app.put("/api/report-sheets/:studentId", authMiddleware, async (req: Authenticat
       return res.status(403).json({ error: "You are not assigned to this student's class" });
     }
 
-    const validKeys = new Set(REPORT_SUBJECTS.map((s) => s.key));
+    // Allowed subject keys = the 13 default report-sheet subjects plus any
+    // class-added subjects (POST/DELETE /api/classes/:classId/report-sheet/subjects).
+    // This is what lets an admin add/remove subjects on the sheet and save the
+    // marks for the ones they added.
+    const allowedKeys = new Set(REPORT_SUBJECTS.map((s) => s.key));
+    try {
+      const customRows = await queryAll(
+        `SELECT subject_key FROM report_sheet_subjects WHERE class_id = $1 AND enabled = 1`,
+        [student.class_id]
+      );
+      for (const r of customRows) allowedKeys.add(r.subject_key);
+    } catch {
+      // If the report-sheet schema is not present yet, keep only the default keys.
+    }
     const submitted = new Map<string, any>();
     if (Array.isArray(req.body?.scores)) {
       for (const row of req.body.scores) {
         const key = String(row?.key ?? "");
-        if (validKeys.has(key)) submitted.set(key, row);
+        if (allowedKeys.has(key)) submitted.set(key, row);
       }
     }
 
-    for (const subject of REPORT_SUBJECTS) {
-      const row = submitted.get(subject.key);
+    for (const key of allowedKeys) {
+      const row = submitted.get(key);
       if (!row) continue;
       const test = clampScore(row.test_score, MAX_TEST_SCORE);
       const exam = clampScore(row.exam_score, MAX_EXAM_SCORE);
@@ -1153,7 +1320,7 @@ app.put("/api/report-sheets/:studentId", authMiddleware, async (req: Authenticat
            exam_score = excluded.exam_score,
            remarks = excluded.remarks,
            updated_at = CURRENT_TIMESTAMP`,
-        [studentId, student.class_id, term, year, subject.key, test, exam, remarks]
+        [studentId, student.class_id, term, year, key, test, exam, remarks]
       );
     }
 

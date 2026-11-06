@@ -5,10 +5,6 @@ import { ArrowLeft, Printer, Save, Loader2, CheckCircle, AlertCircle } from "luc
 import {
   MAX_TEST_SCORE,
   MAX_EXAM_SCORE,
-  MAX_SUBJECT_TOTAL,
-  MAX_SHEET_TOTAL,
-  MAX_SHEET_EXAM,
-  MAX_SHEET_TEST,
   GRADING_SCALE,
   defaultReportYear,
   gradeFor,
@@ -107,6 +103,15 @@ export default function ReportSheet({
   const [yearDraft, setYearDraft] = useState(initialYear ?? defaultReportYear());
   const [sheet, setSheet] = useState<SheetData | null>(null);
   const [rows, setRows] = useState<Record<string, DraftRow>>({});
+  // Report-sheet subject configuration (allows the admin to add/remove the
+  // subjects that are printed on the sheet).
+  const [reportSubjects, setReportSubjects] = useState<
+    { key: string; english: string; arabic: string }[]
+  >([]);
+  const [subjectLoadError, setSubjectLoadError] = useState<string | null>(null);
+  // Stable set of subject keys the admin has chosen for this sheet (defaults
+  // + any class-added). Used to render rows beyond the built-in 13.
+  const [subjectKeys, setSubjectKeys] = useState<Set<string>>(new Set());
   const [meta, setMeta] = useState<DraftMeta>({
     general_remarks: "",
     promotion_to: "",
@@ -117,14 +122,47 @@ export default function ReportSheet({
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState<{ type: "success" | "error"; text: string } | null>(null);
 
-  // Use an absolute URL so the sheet works from every portal (public, teacher,
-  // student, and admin) — a relative URL can resolve against the wrong origin or
-  // a SPA rewrite rule on some hosts.
+
+  // Absolute origin so the sheet works from every portal (public, teacher,
+  // student, and admin) — a relative URL can resolve against the wrong origin
+  // or a SPA rewrite rule on some hosts.
   const apiHost = typeof window !== "undefined" ? window.location.origin : "https://al-mustafa-academy-chi.vercel.app";
+
+  // Fetch this class's report-sheet subject configuration (defaults + any
+  // class-added subject) so the admin can manage the subjects printed on the
+  // sheet.
+  const fetchReportSubjects = useCallback(async () => {
+    if (!sheet?.student.class_id || !token) return;
+    setSubjectLoadError(null);
+    try {
+      const res = await fetch(
+        `${apiHost}/api/classes/${sheet.student.class_id}/report-sheet/subjects`,
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+      const data = await res.json();
+      if (!res.ok) throw new Error(data?.error || "Failed to load report-sheet subjects");
+      setReportSubjects(data.subjects || []);
+      const keys = new Set<string>();
+      for (const s of data.subjects || []) keys.add(s.key);
+      setSubjectKeys(keys);
+    } catch (err: any) {
+      setSubjectLoadError(err?.message || "Failed to load report-sheet subjects");
+    }
+  }, [sheet?.student.class_id, token, apiHost]);
+
+
   const load = useCallback(async () => {
     setLoading(true);
     setMessage(null);
     try {
+      // Guard against a missing studentId (e.g. a truncated student row) so we
+      // never issue a malformed fetch that returns 404/empty and leaves the
+      // sheet blank on the admin portal.
+      if (!studentId || typeof studentId !== "number") {
+        setMessage({ type: "error", text: "Student record is unavailable. Please register the student again." });
+        setLoading(false);
+        return;
+      }
       const res = await fetch(
         `${apiHost}/api/report-sheets/${studentId}?term=${term}&year=${encodeURIComponent(year)}`,
         { headers: { Authorization: `Bearer ${token}` } }
@@ -147,6 +185,9 @@ export default function ReportSheet({
       }
       setRows(nextRows);
       setMeta({ ...next.meta });
+      // Refresh the class's report-sheet subject configuration so the admin can
+      // add/remove the subjects printed on this sheet.
+      void fetchReportSubjects();
     } catch (err: any) {
       setMessage({ type: "error", text: err?.message || "Failed to load report sheet" });
     } finally {
@@ -182,7 +223,16 @@ export default function ReportSheet({
     const testTotal = subjects.reduce((sum, s) => sum + (s.test_score ?? 0), 0);
     const examTotal = subjects.reduce((sum, s) => sum + (s.exam_score ?? 0), 0);
     const total = testTotal + examTotal;
-    const percentage = Math.round((total / MAX_SHEET_TOTAL) * 1000) / 10;
+    // Dynamic max: every printed subject is out of 100 (test 30 + exam 70) as long
+    // as the admin enters a score, otherwise (null) it contributes nothing to the
+    // denominator either. This keeps the percentage meaningful as subjects are
+    // added or removed from the sheet.
+    const maxTotal =
+      subjects.reduce(
+        (sum, s) => sum + (s.test_score === null && s.exam_score === null ? 0 : 100),
+        0
+      );
+    const percentage = maxTotal > 0 ? Math.round((total / maxTotal) * 1000) / 10 : 0;
     const band = gradeFor(percentage);
     return { subjects, testTotal, examTotal, total, percentage, band };
   }, [sheet, rows]);
@@ -351,28 +401,36 @@ export default function ReportSheet({
             <table className="w-full border-collapse table-fixed">
               <thead>
                 <tr className="bg-[#f3f4f6]">
-                  <th className="border border-[#1f2937] w-[20%] px-1 py-[3px]">
+                  <th className="border border-[#1f2937] w-[17%] px-1 py-[3px]">
                     <p className="text-[8.5px] font-bold uppercase leading-tight">REMARKS</p>
                     <p className="font-arabic text-[9.5px] leading-tight" dir="rtl">الملاحظة</p>
                   </th>
-                  <th className="border border-[#1f2937] w-[13%] px-1 py-[3px]">
-                    <p className="text-[8.5px] font-bold uppercase leading-tight">TOTAL SCORE</p>
-                    <p className="text-[7.5px] leading-tight">(Max {MAX_SUBJECT_TOTAL})</p>
+                  <th className="border border-[#1f2937] w-[8%] px-1 py-[3px]">
+                    <p className="text-[8.5px] font-bold uppercase leading-tight">TOTAL</p>
+                    <p className="text-[7.5px] leading-tight">(Max 100)</p>
                     <p className="font-arabic text-[9.5px] leading-tight" dir="rtl">درجة المحصول</p>
                   </th>
-                  <th className="border border-[#1f2937] w-[13%] px-1 py-[3px]">
-                    <p className="text-[8.5px] font-bold uppercase leading-tight">EXAM SCORE</p>
-                    <p className="text-[7.5px] leading-tight">(Max {MAX_EXAM_SCORE})</p>
-                    <p className="font-arabic text-[9.5px] leading-tight" dir="rtl">درجة الإمتحان</p>
-                  </th>
-                  <th className="border border-[#1f2937] w-[13%] px-1 py-[3px]">
-                    <p className="text-[8.5px] font-bold uppercase leading-tight">TEST SCORE</p>
-                    <p className="text-[7.5px] leading-tight">(Max {MAX_TEST_SCORE})</p>
+                  <th className="border border-[#1f2937] w-[9%] px-1 py-[3px]">
+                    <p className="text-[8.5px] font-bold uppercase leading-tight">TEST</p>
+                    <p className="text-[7.5px] leading-tight">(Max 30)</p>
                     <p className="font-arabic text-[9.5px] leading-tight" dir="rtl">درجة الإختبار</p>
                   </th>
-                  <th className="border border-[#1f2937] px-1 py-[3px]">
-                    <p className="text-[8.5px] font-bold uppercase leading-tight">SUBJECTS</p>
-                    <p className="font-arabic text-[9.5px] leading-tight" dir="rtl">المواد الدراسية</p>
+                  <th className="border border-[#1f2937] w-[9%] px-1 py-[3px]">
+                    <p className="text-[8.5px] font-bold uppercase leading-tight">EXAM</p>
+                    <p className="text-[7.5px] leading-tight">(Max 70)</p>
+                    <p className="font-arabic text-[9.5px] leading-tight" dir="rtl">درجة الإمتحان</p>
+                  </th>
+                  <th className="border border-[#1f2937] w-[34%] px-1 py-[3px]">
+                    <p className="text-[8.5px] font-bold uppercase leading-tight">SUBJECT</p>
+                    <p className="font-arabic text-[9.5px] leading-tight" dir="rtl">المادة الدراسية</p>
+                  </th>
+                  <th className="border border-[#1f2937] w-[15%] px-1 py-[3px]">
+                    <p className="text-[8.5px] font-bold uppercase leading-tight">ASSIGNMENT / WORK</p>
+                    <p className="font-arabic text-[9.5px] leading-tight" dir="rtl">المهمة أو العمل</p>
+                  </th>
+                  <th className="border border-[#1f2937] w-[8%] px-1 py-[3px]">
+                    <p className="text-[8.5px] font-bold uppercase leading-tight">ON</p>
+                    <p className="font-arabic text-[9.5px] leading-tight" dir="rtl">على</p>
                   </th>
                 </tr>
               </thead>
@@ -395,12 +453,33 @@ export default function ReportSheet({
                       {cellInput(rows[subject.key]?.test ?? "", (v) => updateRow(subject.key, "test", v))}
                     </td>
                     <td className="border border-[#1f2937] px-1.5 py-[2px]">
-                      <span className="block text-[8px] leading-tight uppercase font-semibold">
-                        {subject.english}
-                      </span>
-                      <span className="block font-arabic text-[9.5px] leading-tight" dir="rtl">
-                        {subject.arabic}
-                      </span>
+                      <div className="flex flex-wrap items-center gap-1">
+                        <span className="block text-[8px] leading-tight uppercase font-semibold">
+                          {subject.english}
+                        </span>
+                        <span className="block font-arabic text-[9.5px] leading-tight" dir="rtl">
+                          {subject.arabic}
+                        </span>
+                      </div>
+                    </td>
+                    <td className="border border-[#1f2937] px-1.5 py-[2px]">
+                      {cellInput(subject.remarks, (v) => updateRow(subject.key, "remarks", v), {
+                        align: "left",
+                        text: true,
+                      })}
+                    </td>
+                    <td className="border border-[#1f2937] px-1 py-[2px] text-center">
+                      {subject.key.startsWith("quran_") || subject.key === "tajwid" || subject.key === "hadith" || subject.key === "fiqh" || subject.key === "tawhid" || subject.key === "tafsir" || subject.key === "nahw" || subject.key === "balaghah" || subject.key === "mutalaah" || subject.key === "poem" || subject.key === "adab" || subject.key === "history" || subject.key === "hadith_science" ? (
+                        <span className="block text-[7.5px] leading-tight">100 (default)</span>
+                      ) : (
+                        <input
+                          value={rows[subject.key]?.test ?? ""}
+                          onChange={(e) => updateRow(subject.key, "test", e.target.value)}
+                          inputMode="numeric"
+                          maxLength={3}
+                          className="w-full bg-transparent text-[8px] leading-tight outline-none border-b border-[#1f2937] px-0.5"
+                        />
+                      )}
                     </td>
                   </tr>
                 ))}
@@ -410,20 +489,21 @@ export default function ReportSheet({
                   </td>
                   <td className="border border-[#1f2937] px-1 py-[3px] text-center">
                     <span className="block text-[10px] font-extrabold">{live.testTotal + live.examTotal}</span>
-                    <span className="block text-[7.5px] leading-tight">(Max {MAX_SHEET_TOTAL})</span>
+                    <span className="block text-[7.5px] leading-tight">(Max {live.subjects.length * 100})</span>
                   </td>
                   <td className="border border-[#1f2937] px-1 py-[3px] text-center">
                     <span className="block text-[10px] font-extrabold">{live.examTotal}</span>
-                    <span className="block text-[7.5px] leading-tight">(Max {MAX_SHEET_EXAM})</span>
+                    <span className="block text-[7.5px] leading-tight">(Max {live.subjects.length * 30})</span>
                   </td>
                   <td className="border border-[#1f2937] px-1 py-[3px] text-center">
                     <span className="block text-[10px] font-extrabold">{live.testTotal}</span>
-                    <span className="block text-[7.5px] leading-tight">(Max {MAX_SHEET_TEST})</span>
+                    <span className="block text-[7.5px] leading-tight">(Max {live.subjects.length * 70})</span>
                   </td>
                   <td className="border border-[#1f2937] px-1.5 py-[3px]">
                     <span className="block text-[8px] font-bold uppercase leading-tight">GRAND TOTAL</span>
                     <span className="block font-arabic text-[9.5px] leading-tight" dir="rtl">المجموع الكلي</span>
                   </td>
+                  <td colSpan={2}></td>
                 </tr>
               </tbody>
             </table>
@@ -616,10 +696,68 @@ export default function ReportSheet({
             <div className="overflow-x-auto pb-2">
               <div className="min-w-[700px] max-w-[760px] mx-auto shadow-lg">{sheetBody(false)}</div>
             </div>
+            {subjectLoadError && (
+              <p className="text-[9px] text-center text-red-100 mt-1">{subjectLoadError}</p>
+            )}
             {editable && (
-              <p className="text-[10px] text-center text-on-surface-variant mt-1 mb-3">
-                Type the test and exam marks — total, grade and position update when you save.
-              </p>
+              <div className="bg-white rounded-xl border border-primary/10 p-3 mt-2">
+                <div className="flex flex-wrap items-center gap-2">
+                  <span className="text-[9px] font-bold uppercase tracking-wide">Manage subjects printed on the sheet</span>
+                  <div className="flex gap-1">
+                    <input
+                      ref={(el) => { (el as HTMLInputElement).focus(); }}
+                      placeholder="New subject name"
+                      maxLength={40}
+                      className="text-[9px] border border-primary/20 rounded px-1.5 py-0.5 text-white bg-secondary/15 outline-none focus:bg-secondary focus:border-secondary"
+                    />
+                    <button
+                      onClick={() => {
+                        const input = document.querySelector("input[placeholder*=\'New subject name\']") as HTMLInputElement | null;
+                        const name = input?.value?.trim();
+                        if (!name) return;
+                        const key = name.toLowerCase().replace(/[^a-z0-9]+/g, "_");
+                        fetch(`${apiHost}/api/classes/${sheet?.student.class_id}/report-sheet/subjects`, {
+                          method: "POST",
+                          headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+                          body: JSON.stringify({ key, english: name, arabic: "", position: reportSubjects.length }),
+                        })
+                          .then(async (res) => {
+                            const data = await res.json();
+                            if (!res.ok) throw new Error(data?.error || "Failed to add subject");
+                            await fetchReportSubjects();
+                            setMessage({ type: "success", text: "Subject added to report sheet" });
+                          })
+                          .catch((err: any) => setMessage({ type: "error", text: err?.message }));
+                        input.value = "";
+                      }}
+                      className="text-[9px] bg-secondary text-on-secondary hover:bg-secondary-hover px-2 py-0.5 rounded transition-colors cursor-pointer"
+                    >+ Add subject</button>
+                  </div>
+                </div>
+                <div className="flex flex-wrap gap-1 mt-1">
+                  {reportSubjects.map((s) => {
+                    const enabled = subjectKeys.has(s.key);
+                    return (
+                      <button key={s.key} title="Remove from report sheet"
+                        onClick={async () => {
+                          if (!sheet?.student.class_id) return;
+                          await fetch(`${apiHost}/api/classes/${sheet.student.class_id}/report-sheet/subjects/${s.key}`, {
+                            method: "DELETE",
+                            headers: { Authorization: `Bearer ${token}` },
+                          });
+                          await fetchReportSubjects();
+                          setMessage({ type: "success", text: `Subject removed: ${s.english}` });
+                        }}
+                        className={
+                          `text-[8px] px-1.5 py-0.5 rounded transition-colors cursor-pointer border ${(enabled ? "bg-white/10 border-primary/20 text-primary" : "bg-white/5 border-transparent text-on-surface-variant")}`
+                        }
+                      >
+                        {enabled ? "- " + s.english : s.english}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
             )}
             {createPortal(<div className="report-sheet-print">{sheetBody(true)}</div>, document.body)}
           </>
