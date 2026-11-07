@@ -29,6 +29,7 @@
     "server-dist",
     "data",
     "uploads",
-    "build"
+    "build",
+    "new-temp"
   ]
 }

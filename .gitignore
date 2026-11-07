@@ -13,3 +13,6 @@ uploads/
 .vercel
 !public/uploads/
 !public/uploads/**
+
+.vercel
+.env*

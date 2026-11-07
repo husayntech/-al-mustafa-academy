@@ -568,12 +568,11 @@ export default function AdminSettings({ token, user, onBack }: AdminSettingsProp
     setBatchStaffLoading(true);
     try {
       // Each line is simply a staff member's full name, e.g. "Ibrahim Mustapha".
-      // Username is auto-generated (staff_ibrahim) and password defaults to staff123.
       const users = lines.map((line) => {
         const parts = splitFullName(line);
         return {
           username: "",
-          password: "staff123",
+          password: "",
           surname: parts.surname,
           first_name: parts.first_name,
           middle_name: parts.middle_name,
@@ -618,15 +617,15 @@ export default function AdminSettings({ token, user, onBack }: AdminSettingsProp
           ...newUser,
           full_name: composedName,
           username: newUser.username || autoStaffUsername(newUser.first_name, newUser.surname, newUser.middle_name),
-          password: newUser.password || "staff123",
+          password: NewUser.password || ""
         }),
       });
       const data = await res.json();
       if (res.ok) {
-        const loginDetails = `Login: ${data.username || newUser.username} / ${data.password || newUser.password || "staff123"}`;
+        const loginDetails = `Login: ${data.username || newUser.username} / ${data.password || newUser.password || ""}`;
         setMessage({ type: "success", text: `"${composedName}" created! ${loginDetails}` });
         setShowAddModal(false);
-        setNewUser({ username: "", password: "staff123", surname: "", first_name: "", middle_name: "", role: "teacher", is_admin: false, phone: "", email: "", address: "" }); usernameEdited.current = false;
+        setNewUser({ username: "", password: "", surname: "", first_name: "", middle_name: "", role: "teacher", is_admin: false, phone: "", email: "", address: "" }); usernameEdited.current = false;
         fetchUsers();
         fetchStats();
       } else {
@@ -896,7 +895,7 @@ export default function AdminSettings({ token, user, onBack }: AdminSettingsProp
         setMessage({ type: "success", text: `User "${composedName}" updated!` });
         setShowAddModal(false);
         setEditingUser(null);
-        setNewUser({ username: "", password: "staff123", surname: "", first_name: "", middle_name: "", role: "teacher", is_admin: false, phone: "", email: "", address: "" }); usernameEdited.current = false;
+        setNewUser({ username: "", password: "", surname: "", first_name: "", middle_name: "", role: "teacher", is_admin: false, phone: "", email: "", address: "" }); usernameEdited.current = false;
         fetchUsers();
       } else {
         const data = await res.json();
@@ -1325,7 +1324,7 @@ export default function AdminSettings({ token, user, onBack }: AdminSettingsProp
                   <RefreshCw className="w-3.5 h-3.5" /> Refresh
                 </button>
                 <button
-                  onClick={() => { setEditingUser(null); setNewUser({ username: "", password: "staff123", surname: "", first_name: "", middle_name: "", role: "teacher", is_admin: false, phone: "", email: "", address: "" }); usernameEdited.current = false; setShowAddModal(true); }}
+                  onClick={() => { setEditingUser(null);        setNewUser({ username: "", password: "", surname: "", first_name: "", middle_name: "", role: "teacher", is_admin: false, phone: "", email: "", address: "" }); usernameEdited.current = false; setShowAddModal(true); }}
                   className="flex items-center gap-1.5 text-xs bg-primary text-white px-4 py-2.5 rounded-lg font-semibold hover:bg-primary-container transition-colors cursor-pointer"
                 >
                   <UserPlus className="w-4 h-4" />
@@ -2369,7 +2368,7 @@ export default function AdminSettings({ token, user, onBack }: AdminSettingsProp
               </div>
               <div className="bg-blue-50 border border-blue-200 rounded-lg px-3 py-2 mb-4">
                 <p className="text-[10px] text-blue-700 leading-relaxed">
-                  Just type each staff member's <b>full name</b> on its own line. Username is auto-generated from the name (e.g. <b>staff_ibrahim</b>) and the default password is <b>staff123</b>. Role defaults to <b>teacher</b>.
+                  Just type each staff member's <b>full name</b> on its own line. Username is auto-generated from the name (e.g. <b>staff_ibrahim</b>). Role defaults to <b>teacher</b>.
                 </p>
               </div>
               <div className="flex gap-2">
@@ -2393,7 +2392,7 @@ export default function AdminSettings({ token, user, onBack }: AdminSettingsProp
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
-              onClick={() => { setShowAddModal(false); setEditingUser(null); setNewUser({ username: "", password: "staff123", surname: "", first_name: "", middle_name: "", role: "teacher", is_admin: false, phone: "", email: "", address: "" }); usernameEdited.current = false; }}
+              onClick={() => { setShowAddModal(false); setEditingUser(null);        setNewUser({ username: "", password: "", surname: "", first_name: "", middle_name: "", role: "teacher", is_admin: false, phone: "", email: "", address: "" }); usernameEdited.current = false; }}
               className="absolute inset-0 bg-black/40 backdrop-blur-xs cursor-pointer"
             />
             <motion.div
@@ -2404,7 +2403,7 @@ export default function AdminSettings({ token, user, onBack }: AdminSettingsProp
             >
               <div className="flex items-center justify-between mb-4">
                 <h3 className="font-serif text-lg font-bold text-primary">{editingUser ? 'Edit Staff' : 'Add New Staff'}</h3>
-                <button onClick={() => { setShowAddModal(false); setEditingUser(null); setNewUser({ username: "", password: "staff123", surname: "", first_name: "", middle_name: "", role: "teacher", is_admin: false, phone: "", email: "", address: "" }); usernameEdited.current = false; }} className="p-1 hover:bg-surface-container rounded-lg cursor-pointer">
+                <button onClick={() => { setShowAddModal(false); setEditingUser(null);        setNewUser({ username: "", password: "", surname: "", first_name: "", middle_name: "", role: "teacher", is_admin: false, phone: "", email: "", address: "" }); usernameEdited.current = false; }} className="p-1 hover:bg-surface-container rounded-lg cursor-pointer">
                   <X className="w-4 h-4" />
                 </button>
               </div>
@@ -2456,7 +2455,7 @@ export default function AdminSettings({ token, user, onBack }: AdminSettingsProp
                       type={showStaffPassword ? "text" : "password"}
                       value={newUser.password}
                       onChange={(e) => setNewUser({ ...newUser, password: e.target.value })}
-                      placeholder={editingUser ? 'Leave blank to keep current' : 'Default: staff123'}
+                      placeholder={editingUser ? 'Leave blank to keep current' : ''}
                       className="w-full bg-surface border border-primary/20 p-3 pr-10 text-sm rounded-lg focus:outline-none focus:border-secondary font-mono"
                     />
                     <button
@@ -2513,7 +2512,7 @@ export default function AdminSettings({ token, user, onBack }: AdminSettingsProp
                 </div>
               </div>
               <div className="flex gap-2 mt-6">
-                <button onClick={() => { setShowAddModal(false); setEditingUser(null); setNewUser({ username: "", password: "staff123", surname: "", first_name: "", middle_name: "", role: "teacher", is_admin: false, phone: "", email: "", address: "" }); usernameEdited.current = false; }}
+                <button onClick={() => { setShowAddModal(false); setEditingUser(null);        setNewUser({ username: "", password: "", surname: "", first_name: "", middle_name: "", role: "teacher", is_admin: false, phone: "", email: "", address: "" }); usernameEdited.current = false; }}
                   className="flex-1 border border-primary/20 text-on-surface-variant py-2.5 rounded-lg text-xs font-semibold cursor-pointer hover:bg-surface-container">Cancel</button>
                 <button onClick={editingUser ? handleEditUser : handleAddUser}
                   disabled={!composeFullName(newUser)}

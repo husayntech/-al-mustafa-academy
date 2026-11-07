@@ -187,10 +187,7 @@ export default function AdminLoginPage({ onLoginSuccess, onBack }: AdminLoginPag
 
             <div className="text-center">
               <p className="text-[10px] text-on-surface-variant/50">
-                Default: admin / admin123
-              </p>
-              <p className="text-[9px] text-on-surface-variant/30 mt-1">
-                Use teacher / teacher123 for teacher access
+                Log in with the credentials your site administrator gave you.
               </p>
             </div>
           </form>

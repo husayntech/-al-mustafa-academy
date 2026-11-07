@@ -304,7 +304,7 @@ export default function StudentLogin({ onBack }: StudentLoginProps) {
               <label className="text-[10px] font-bold text-on-surface-variant uppercase tracking-wider block mb-1.5">Password</label>
               <div className="relative">
                 <input type={showPassword ? "text" : "password"} value={password}
-                  onChange={(e) => setPassword(e.target.value)} placeholder="Default: student123"
+                  onChange={(e) => setPassword(e.target.value)}                  placeholder="Your student password"
                   className="w-full bg-surface border border-primary/20 pl-3 pr-10 py-3 text-sm rounded-lg focus:outline-none focus:border-secondary transition-all" />
                 <button type="button" onClick={() => setShowPassword(!showPassword)}
                   className="absolute right-3 top-1/2 -translate-y-1/2 text-on-surface-variant/50 cursor-pointer">

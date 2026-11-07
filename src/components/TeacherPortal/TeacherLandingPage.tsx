@@ -154,7 +154,7 @@ export default function TeacherLandingPage({ onLogin, onBack }: TeacherLandingPa
       {/* CTA */}
       <div className="max-w-7xl mx-auto px-6 py-16 text-center">
         <p className="text-sm text-on-surface-variant mb-4">
-          Default credentials: <strong>teacher</strong> / <strong>teacher123</strong>
+          Sign in with your school credentials.
         </p>
         <button
           onClick={onLogin}
