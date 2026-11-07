@@ -211,12 +211,13 @@ export default function ReportSheet({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [studentId, term, year, token]);
 
+  // Re-fetch the subject configuration after the sheet has loaded so the admin
+  // subject manager has the correct class's subjects.
   useEffect(() => {
-    const next = yearDraft.trim();
-    if (!next || next === year) return;
-    const timer = setTimeout(() => setYear(next), 600);
-    return () => clearTimeout(timer);
-  }, [yearDraft, year]);
+    if (sheet?.student?.class_id) {
+      void fetchReportSubjectsRef.current();
+    }
+  }, [sheet]);
 
   const live = useMemo(() => {
     const subjects = (sheet?.subjects || []).map((subject) => {
